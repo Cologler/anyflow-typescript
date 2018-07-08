@@ -1,6 +1,6 @@
 {
   "name": "anyflow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "dist/anyflow.js",
   "devDependencies": {
@@ -18,5 +18,13 @@
   "license": "MIT",
   "files": [
     "dist"
-  ]
+  ],
+  "homepage": "https://github.com/Cologler/anyflow-typescript",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cologler/anyflow-typescript.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Cologler/anyflow-typescript/issues"
+  }
 }
