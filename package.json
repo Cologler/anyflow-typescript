@@ -1,0 +1,22 @@
+{
+  "name": "anyflow",
+  "version": "0.1.0",
+  "description": "",
+  "main": "dist/anyflow.js",
+  "devDependencies": {
+    "@types/mocha": "^5.2.3",
+    "mocha": "^5.2.0"
+  },
+  "scripts": {
+    "test": "mocha",
+    "prepare": "tsc"
+  },
+  "keywords": [
+    "middleware"
+  ],
+  "author": "Cologler",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ]
+}
