@@ -1,5 +1,10 @@
 # anyflow
 
+[![npm](https://img.shields.io/npm/v/anyflow.svg?style=flat-square)](https://www.npmjs.com/package/anyflow)
+
+[![npm](https://img.shields.io/npm/dt/anyflow.svg?style=flat-square)](https://www.npmjs.com/package/anyflow)
+[![jsdelivr](https://data.jsdelivr.com/v1/package/npm/anyflow/badge)](https://www.jsdelivr.com/package/npm/anyflow)
+
 **NOT only http server need middleware !!**
 
 ## HOW-TO-USE
