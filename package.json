@@ -1,15 +1,19 @@
 {
   "name": "anyflow",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "",
   "main": "dist/anyflow.js",
+  "jsdelivr": "./dist/anyflow.browser.js",
   "devDependencies": {
+    "@types/browserify": "^12.0.33",
     "@types/mocha": "^5.2.3",
-    "mocha": "^5.2.0"
+    "mocha": "^5.2.0",
+    "browserify": "^16.2.2"
   },
   "scripts": {
     "test": "mocha",
-    "prepare": "tsc"
+    "prepare": "tsc",
+    "browserify": "browserify . -s anyflow -o dist/anyflow.browser.js"
   },
   "keywords": [
     "middleware"
