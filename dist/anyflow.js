@@ -1,5 +1,29 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+class ExecuteContext {
+    constructor(value) {
+        this._data = {};
+        this._value = value;
+    }
+    /**
+     * use for transfer data between each middleware.
+     *
+     * @readonly
+     * @memberof ExecuteContext
+     */
+    get data() {
+        return this._data;
+    }
+    /**
+     * data input from App.run(value)
+     *
+     * @readonly
+     * @memberof ExecuteContext
+     */
+    get value() {
+        return this._value;
+    }
+}
 class MiddlewareInvoker {
     constructor(factorys, ExecuteContext) {
         this._index = 0;
@@ -50,12 +74,7 @@ class App {
         return this;
     }
     run(value) {
-        const context = {
-            data: {}
-        };
-        Object.defineProperty(context, 'data', {
-            value: {}
-        });
+        const context = new ExecuteContext(value);
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
     }

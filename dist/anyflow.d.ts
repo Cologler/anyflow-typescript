@@ -1,5 +1,21 @@
-interface ExecuteContext {
+declare class ExecuteContext {
+    private _value;
+    private _data;
+    constructor(value: any);
+    /**
+     * use for transfer data between each middleware.
+     *
+     * @readonly
+     * @memberof ExecuteContext
+     */
     readonly data: object;
+    /**
+     * data input from App.run(value)
+     *
+     * @readonly
+     * @memberof ExecuteContext
+     */
+    readonly value: any;
 }
 declare type Next = () => Promise<any>;
 declare type MiddlewareFunction = (context: ExecuteContext, next: Next) => Promise<any>;

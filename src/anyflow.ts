@@ -1,5 +1,30 @@
-interface ExecuteContext {
-    readonly data: object;
+class ExecuteContext {
+    private _value: any;
+    private _data: object = {};
+
+    constructor(value) {
+        this._value = value;
+    }
+
+    /**
+     * use for transfer data between each middleware.
+     *
+     * @readonly
+     * @memberof ExecuteContext
+     */
+    get data() {
+        return this._data;
+    }
+
+    /**
+     * data input from App.run(value)
+     *
+     * @readonly
+     * @memberof ExecuteContext
+     */
+    get value() {
+        return this._value;
+    }
 }
 
 type Next = () => Promise<any>;
@@ -75,12 +100,7 @@ export class App {
     }
 
     run(value: any): Promise<any> {
-        const context: ExecuteContext = {
-            data: {}
-        };
-        Object.defineProperty(context, 'data', {
-            value: {}
-        });
+        const context = new ExecuteContext(value);
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
     }

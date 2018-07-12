@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { App } = require('../dist/anyflow');
+const { App } = require('../dist/anyflow.js');
 
 describe('anyflow', function() {
 
@@ -47,14 +47,23 @@ describe('anyflow', function() {
     });
 
     describe('#invoke()', function() {
-        it('should call middleware', function() {
+        it('should get value from data', async function() {
+            const app = new App();
+            app.use((c) => {
+                assert.equal(c.value, 2);
+                return 3;
+            });
+            await app.run(2);
+        });
+
+        it('should call middleware', async function() {
             const app = new App();
             let a = 1;
             app.use(async (c, n) => {
                 a = 2;
                 await n();
             });
-            app.run();
+            await app.run();
             assert.equal(a, 2);
         });
 
