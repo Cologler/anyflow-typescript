@@ -1,15 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-class ExecuteContext {
-    constructor() {
-        this.data = {};
-    }
-}
 class MiddlewareInvoker {
-    constructor(factorys, context) {
+    constructor(factorys, ExecuteContext) {
         this._index = 0;
         this._factorys = factorys;
-        this._context = context;
+        this._context = ExecuteContext;
     }
     next() {
         if (this._index === this._factorys.length) {
@@ -26,7 +21,7 @@ class MiddlewareInvoker {
         return middleware.invoke(this._context, next);
     }
 }
-class GenericApp {
+class App {
     constructor() {
         this._factorys = [];
     }
@@ -41,23 +36,28 @@ class GenericApp {
             };
         }
         else if (typeof obj === 'object') {
-            factory = obj;
+            factory = {
+                get: () => obj
+            };
         }
         if (factory) {
             this._factorys.push(factory);
         }
         return this;
     }
-    run(context) {
+    useFactory(factory) {
+        this._factorys.push(factory);
+        return this;
+    }
+    run(value) {
+        const context = {
+            data: {}
+        };
+        Object.defineProperty(context, 'data', {
+            value: {}
+        });
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
-    }
-}
-exports.GenericApp = GenericApp;
-class App extends GenericApp {
-    run(context = null) {
-        context = context || new ExecuteContext();
-        return super.run(context);
     }
 }
 exports.App = App;

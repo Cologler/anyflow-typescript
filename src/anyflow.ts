@@ -1,27 +1,27 @@
-class ExecuteContext {
-    readonly data = {};
+interface ExecuteContext {
+    readonly data: object;
 }
 
 type Next = () => Promise<any>;
 
-type MiddlewareFunction<Context extends ExecuteContext> = (context: Context, next: Next) => Promise<any>;
+type MiddlewareFunction = (context: ExecuteContext, next: Next) => Promise<any>;
 
-interface Middleware<Context extends ExecuteContext> {
-    invoke: MiddlewareFunction<Context>;
+interface Middleware {
+    invoke: MiddlewareFunction;
 }
 
-interface MiddlewareFactory<Context extends ExecuteContext> {
-    get(): Middleware<Context>;
+interface MiddlewareFactory {
+    get(): Middleware;
 }
 
-class MiddlewareInvoker<Context extends ExecuteContext> {
-    private _factorys: MiddlewareFactory<Context>[];
-    private _context: Context;
+class MiddlewareInvoker {
+    private _factorys: MiddlewareFactory[];
+    private _context: ExecuteContext;
     private _index: number = 0;
 
-    constructor(factorys: MiddlewareFactory<Context>[], context: Context) {
+    constructor(factorys: MiddlewareFactory[], ExecuteContext: ExecuteContext) {
         this._factorys = factorys;
-        this._context = context;
+        this._context = ExecuteContext;
     }
 
     next(): Promise<any> {
@@ -42,24 +42,26 @@ class MiddlewareInvoker<Context extends ExecuteContext> {
     }
 }
 
-export class GenericApp<Context extends ExecuteContext> {
-    private _factorys: MiddlewareFactory<Context>[];
+export class App {
+    private _factorys: MiddlewareFactory[];
 
     constructor() {
         this._factorys = [];
     }
 
-    use(obj: MiddlewareFactory<Context> | MiddlewareFunction<Context>): this {
-        let factory: MiddlewareFactory<Context> = null;
+    use(obj: Middleware | MiddlewareFunction): this {
+        let factory: MiddlewareFactory = null;
         if (typeof obj === 'function') {
-            let middleware: Middleware<Context> = {
+            let middleware: Middleware = {
                 invoke: obj
             };
             factory = {
                 get: () => middleware
             };
         } else if (typeof obj === 'object') {
-            factory = obj;
+            factory = {
+                get: () => obj
+            };
         }
         if (factory) {
             this._factorys.push(factory);
@@ -67,15 +69,19 @@ export class GenericApp<Context extends ExecuteContext> {
         return this;
     }
 
-    run(context: Context): Promise<any> {
+    useFactory(factory: MiddlewareFactory): this {
+        this._factorys.push(factory);
+        return this;
+    }
+
+    run(value: any): Promise<any> {
+        const context: ExecuteContext = {
+            data: {}
+        };
+        Object.defineProperty(context, 'data', {
+            value: {}
+        });
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
-    }
-}
-
-export class App extends GenericApp<ExecuteContext> {
-    run(context: ExecuteContext = null): Promise<any> {
-        context = context || new ExecuteContext();
-        return super.run(context);
     }
 }

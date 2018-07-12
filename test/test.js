@@ -15,10 +15,25 @@ describe('anyflow', function() {
             assert.equal(a, 2);
         });
 
-        it('should can use middleware factory', async function() {
+        it('should can use middleware', async function() {
             const app = new App();
             let a = 1;
             app.use({
+                invoke: async (c, n) => {
+                    a = 2;
+                    return 10;
+                }
+            });
+            assert.equal(await app.run(), 10);
+            assert.equal(a, 2);
+        });
+    });
+
+    describe('#useFactory()', function() {
+        it('should can use middleware factory', async function() {
+            const app = new App();
+            let a = 1;
+            app.useFactory({
                 get: () => ({
                     invoke: async (c, n) => {
                         a = 2;

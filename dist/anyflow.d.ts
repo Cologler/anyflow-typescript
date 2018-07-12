@@ -1,21 +1,19 @@
-declare class ExecuteContext {
-    readonly data: {};
+interface ExecuteContext {
+    readonly data: object;
 }
 declare type Next = () => Promise<any>;
-declare type MiddlewareFunction<Context extends ExecuteContext> = (context: Context, next: Next) => Promise<any>;
-interface Middleware<Context extends ExecuteContext> {
-    invoke: MiddlewareFunction<Context>;
+declare type MiddlewareFunction = (context: ExecuteContext, next: Next) => Promise<any>;
+interface Middleware {
+    invoke: MiddlewareFunction;
 }
-interface MiddlewareFactory<Context extends ExecuteContext> {
-    get(): Middleware<Context>;
+interface MiddlewareFactory {
+    get(): Middleware;
 }
-export declare class GenericApp<Context extends ExecuteContext> {
+export declare class App {
     private _factorys;
     constructor();
-    use(obj: MiddlewareFactory<Context> | MiddlewareFunction<Context>): this;
-    run(context: Context): Promise<any>;
-}
-export declare class App extends GenericApp<ExecuteContext> {
-    run(context?: ExecuteContext): Promise<any>;
+    use(obj: Middleware | MiddlewareFunction): this;
+    useFactory(factory: MiddlewareFactory): this;
+    run(value: any): Promise<any>;
 }
 export {};
