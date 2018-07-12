@@ -12,10 +12,16 @@ app.use(async (context, next) => {
     // you can get or set data from context.data
     return await next(); // call next middleware
 });
-// or use middleware factory
+// or use middleware
 app.use({
+    invoke: async (context, next) => {
+        return await next();
+    }
+});
+// or use middleware factory
+app.useFactory({
     get: () => ({
-        // factory let you make a new middleware for each times.
+        // factory allow you make a new middleware for each times.
         invoke: async (context, next) => {
             return await next();
         }
