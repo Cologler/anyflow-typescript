@@ -1,35 +1,35 @@
-declare class ExecuteContext {
+declare class ExecuteContext<T> {
     private _value;
-    private _data;
-    constructor(value: any);
+    private _state;
+    constructor(value: T);
     /**
-     * use for transfer data between each middleware.
+     * use for transfer data between middlewares.
      *
      * @readonly
      * @memberof ExecuteContext
      */
-    readonly data: object;
+    readonly state: object;
     /**
      * data input from App.run(value)
      *
      * @readonly
      * @memberof ExecuteContext
      */
-    readonly value: any;
+    readonly value: T;
 }
 declare type Next = () => Promise<any>;
-declare type MiddlewareFunction = (context: ExecuteContext, next: Next) => Promise<any>;
-interface Middleware {
-    invoke: MiddlewareFunction;
+declare type MiddlewareFunction<T> = (context: ExecuteContext<T>, next: Next) => Promise<any>;
+interface Middleware<T> {
+    invoke: MiddlewareFunction<T>;
 }
-interface MiddlewareFactory {
-    get(): Middleware;
+interface MiddlewareFactory<T> {
+    get(): Middleware<T>;
 }
-export declare class App {
+export declare class App<T> {
     private _factorys;
     constructor();
-    use(obj: Middleware | MiddlewareFunction): this;
-    useFactory(factory: MiddlewareFactory): this;
-    run(value: any): Promise<any>;
+    use(obj: Middleware<T> | MiddlewareFunction<T>): this;
+    useFactory(factory: MiddlewareFactory<T>): this;
+    run(value: T): Promise<any>;
 }
 export {};

@@ -1,19 +1,19 @@
-class ExecuteContext {
-    private _value: any;
-    private _data: object = {};
+class ExecuteContext<T> {
+    private _value: T;
+    private _state: object = {};
 
-    constructor(value) {
+    constructor(value: T) {
         this._value = value;
     }
 
     /**
-     * use for transfer data between each middleware.
+     * use for transfer data between middlewares.
      *
      * @readonly
      * @memberof ExecuteContext
      */
-    get data() {
-        return this._data;
+    get state() {
+        return this._state;
     }
 
     /**
@@ -29,22 +29,22 @@ class ExecuteContext {
 
 type Next = () => Promise<any>;
 
-type MiddlewareFunction = (context: ExecuteContext, next: Next) => Promise<any>;
+type MiddlewareFunction<T> = (context: ExecuteContext<T>, next: Next) => Promise<any>;
 
-interface Middleware {
-    invoke: MiddlewareFunction;
+interface Middleware<T> {
+    invoke: MiddlewareFunction<T>;
 }
 
-interface MiddlewareFactory {
-    get(): Middleware;
+interface MiddlewareFactory<T> {
+    get(): Middleware<T>;
 }
 
-class MiddlewareInvoker {
-    private _factorys: MiddlewareFactory[];
-    private _context: ExecuteContext;
+class MiddlewareInvoker<T> {
+    private _factorys: MiddlewareFactory<T>[];
+    private _context: ExecuteContext<T>;
     private _index: number = 0;
 
-    constructor(factorys: MiddlewareFactory[], ExecuteContext: ExecuteContext) {
+    constructor(factorys: MiddlewareFactory<T>[], ExecuteContext: ExecuteContext<T>) {
         this._factorys = factorys;
         this._context = ExecuteContext;
     }
@@ -67,17 +67,17 @@ class MiddlewareInvoker {
     }
 }
 
-export class App {
-    private _factorys: MiddlewareFactory[];
+export class App<T> {
+    private _factorys: MiddlewareFactory<T>[];
 
     constructor() {
         this._factorys = [];
     }
 
-    use(obj: Middleware | MiddlewareFunction): this {
-        let factory: MiddlewareFactory = null;
+    use(obj: Middleware<T> | MiddlewareFunction<T>): this {
+        let factory: MiddlewareFactory<T> = null;
         if (typeof obj === 'function') {
-            let middleware: Middleware = {
+            let middleware: Middleware<T> = {
                 invoke: obj
             };
             factory = {
@@ -94,13 +94,13 @@ export class App {
         return this;
     }
 
-    useFactory(factory: MiddlewareFactory): this {
+    useFactory(factory: MiddlewareFactory<T>): this {
         this._factorys.push(factory);
         return this;
     }
 
-    run(value: any): Promise<any> {
-        const context = new ExecuteContext(value);
+    run(value: T): Promise<any> {
+        const context = new ExecuteContext<T>(value);
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
     }

@@ -3,17 +3,17 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class ExecuteContext {
     constructor(value) {
-        this._data = {};
+        this._state = {};
         this._value = value;
     }
     /**
-     * use for transfer data between each middleware.
+     * use for transfer data between middlewares.
      *
      * @readonly
      * @memberof ExecuteContext
      */
-    get data() {
-        return this._data;
+    get state() {
+        return this._state;
     }
     /**
      * data input from App.run(value)

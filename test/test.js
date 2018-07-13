@@ -46,8 +46,68 @@ describe('anyflow', function() {
         });
     });
 
-    describe('#invoke()', function() {
-        it('should get value from data', async function() {
+    describe('#run()', function() {
+
+        it('should call middleware by #run()', async function() {
+            const app = new App();
+            let a = 1;
+            app.use(async () => {
+                a = 2;
+            });
+            await app.run();
+            assert.equal(a, 2);
+        });
+
+        it('should call next middleware if `await next()`', function() {
+            const app = new App();
+            let a = 1;
+            app.use(async (c, n) => {
+                a += 2;
+                await n(); // call next
+            });
+            app.use(async (c, n) => {
+                a += 3;
+                // wont call next
+            });
+            app.use(async (c, n) => {
+                a += 4;
+            });
+            app.run();
+            assert.equal(a, 6); // 1 + 2 + 3
+        });
+
+        it('should call middleware one by one', async function() {
+            const app = new App();
+            let a = 1;
+            app.use(async (c, n) => {
+                a = 2;
+                await n();
+            });
+            app.use(async (c, n) => {
+                a = 3;
+                await n();
+            });
+            await app.run();
+            assert.equal(a, 3); // should be last one.
+        });
+
+        it('should call only once `await next()`', async function() {
+            const app = new App();
+            let a = 1;
+            app.use(async (c, n) => {
+                assert.equal(await n(), 8);
+                assert.equal(await n(), 8);
+                assert.equal(await n(), 8);
+            });
+            app.use(async (c, n) => {
+                a ++;
+                return 8;
+            });
+            await app.run();
+            assert.equal(a, 2);
+        });
+
+        it('should pass argument by Context.value', async function() {
             const app = new App();
             app.use((c) => {
                 assert.equal(c.value, 2);
@@ -56,74 +116,36 @@ describe('anyflow', function() {
             await app.run(2);
         });
 
-        it('should call middleware', async function() {
+        it('should pass state by Context.state', async function() {
             const app = new App();
-            let a = 1;
             app.use(async (c, n) => {
-                a = 2;
+                assert.equal(c.state.a, undefined);
+                c.state.a = 3;
+                await n();
+            });
+            app.use(async (c, n) => {
+                assert.equal(c.state.a, 3);
+                c.state.a = 5;
+                await n();
+            });
+            app.use(async (c, n) => {
+                assert.equal(c.state.a, 5);
                 await n();
             });
             await app.run();
-            assert.equal(a, 2);
         });
+    });
 
-        it('should call middleware each', function() {
-            const app = new App();
-            let a = 1;
-            app.use(async (c, n) => {
-                a += 2;
-                await n();
-            });
-            app.use(async (c, n) => {
-                a += 3;
-                await n();
-            });
-            app.run();
-            assert.equal(a, 6);
-        });
-
-        it('should call middleware one by one', function() {
-            const app = new App();
-            let a = 1;
-            app.use(async (c, n) => {
-                a = 2;
-                await n();
-            });
-            app.use(async (c, n) => {
-                a = 3;
-                await n();
-            });
-            app.run();
-            assert.equal(a, 3);
-        });
-
-        it('should can not call next middleware', function() {
-            const app = new App();
-            let a = 1;
-            app.use(async (c, n) => {
-                a = 2;
-                // await n(); not call next
-            });
-            app.use(async (c, n) => {
-                a = 3;
-                await n();
-            });
-            app.run();
-            assert.equal(a, 2);
-        });
-
-        it('should has return value', async function() {
+    describe('#run()~return', function() {
+        it('should accept return value', async function() {
             const app = new App();
             app.use(async (c, n) => {
                 return 3;
             });
-            app.use(async (c, n) => {
-                return 4;
-            });
             assert.equal(await app.run(), 3);
         });
 
-        it('should has return one by one', async function() {
+        it('should accept return value by `await next()`', async function() {
             const app = new App();
             app.use(async (c, n) => {
                 return await n();
@@ -134,19 +156,15 @@ describe('anyflow', function() {
             assert.equal(await app.run(), 4);
         });
 
-        it('should only call once', async function() {
+        it('should accept last `await next()` should be undefined', async function() {
             const app = new App();
-            let a = 1;
             app.use(async (c, n) => {
-                await n();
-                await n();
-                await n();
+                return await n();
             });
             app.use(async (c, n) => {
-                a ++;
+                return await n(); // no next
             });
-            await app.run();
-            assert.equal(a, 2);
+            assert.equal(await app.run(), undefined);
         });
     });
 });
