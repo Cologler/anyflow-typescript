@@ -138,7 +138,7 @@ export class App<T> {
         return this;
     }
 
-    run(value: T): Promise<any> {
+    run<R>(value: T): Promise<R> {
         const context = new ExecuteContext<T>(value);
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
