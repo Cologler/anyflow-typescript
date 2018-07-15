@@ -1,4 +1,21 @@
-class ExecuteContext<T> {
+export interface FlowContext<T> {
+    /**
+     * use for transfer data between middlewares.
+     *
+     * @type {object}
+     * @memberof FlowContext
+     */
+    readonly state: object;
+    /**
+     * data input from App.run(value)
+     *
+     * @type {T}
+     * @memberof FlowContext
+     */
+    readonly value: T;
+}
+
+class ExecuteContext<T> implements FlowContext<T> {
     private _value: T;
     private _state: object = {};
 
@@ -6,47 +23,33 @@ class ExecuteContext<T> {
         this._value = value;
     }
 
-    /**
-     * use for transfer data between middlewares.
-     *
-     * @readonly
-     * @memberof ExecuteContext
-     */
     get state() {
         return this._state;
     }
 
-    /**
-     * data input from App.run(value)
-     *
-     * @readonly
-     * @memberof ExecuteContext
-     */
     get value() {
         return this._value;
     }
 }
 
-type Next = () => Promise<any>;
+export type Next = () => Promise<any>;
 
-type MiddlewareFunction<T> = (context: ExecuteContext<T>, next: Next) => Promise<any>;
+export type MiddlewareFunction<T> = (context: FlowContext<T>, next: Next) => Promise<any>;
 
-interface Middleware<T> {
+export interface Middleware<T> {
     invoke: MiddlewareFunction<T>;
 }
 
-interface MiddlewareFactory<T> {
+export interface MiddlewareFactory<T> {
     get(): Middleware<T>;
 }
 
 class MiddlewareInvoker<T> {
-    private _factorys: MiddlewareFactory<T>[];
-    private _context: ExecuteContext<T>;
     private _index: number = 0;
 
-    constructor(factorys: MiddlewareFactory<T>[], ExecuteContext: ExecuteContext<T>) {
-        this._factorys = factorys;
-        this._context = ExecuteContext;
+    constructor(
+        private _factorys: MiddlewareFactory<T>[],
+        private _context: FlowContext<T>) {
     }
 
     next(): Promise<any> {

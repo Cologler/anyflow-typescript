@@ -6,30 +6,18 @@ class ExecuteContext {
         this._state = {};
         this._value = value;
     }
-    /**
-     * use for transfer data between middlewares.
-     *
-     * @readonly
-     * @memberof ExecuteContext
-     */
     get state() {
         return this._state;
     }
-    /**
-     * data input from App.run(value)
-     *
-     * @readonly
-     * @memberof ExecuteContext
-     */
     get value() {
         return this._value;
     }
 }
 class MiddlewareInvoker {
-    constructor(factorys, ExecuteContext) {
+    constructor(_factorys, _context) {
+        this._factorys = _factorys;
+        this._context = _context;
         this._index = 0;
-        this._factorys = factorys;
-        this._context = ExecuteContext;
     }
     next() {
         if (this._index === this._factorys.length) {

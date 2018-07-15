@@ -1,28 +1,25 @@
-declare class ExecuteContext<T> {
-    private _value;
-    private _state;
-    constructor(value: T);
+export interface FlowContext<T> {
     /**
      * use for transfer data between middlewares.
      *
-     * @readonly
-     * @memberof ExecuteContext
+     * @type {object}
+     * @memberof FlowContext
      */
     readonly state: object;
     /**
      * data input from App.run(value)
      *
-     * @readonly
-     * @memberof ExecuteContext
+     * @type {T}
+     * @memberof FlowContext
      */
     readonly value: T;
 }
-declare type Next = () => Promise<any>;
-declare type MiddlewareFunction<T> = (context: ExecuteContext<T>, next: Next) => Promise<any>;
-interface Middleware<T> {
+export declare type Next = () => Promise<any>;
+export declare type MiddlewareFunction<T> = (context: FlowContext<T>, next: Next) => Promise<any>;
+export interface Middleware<T> {
     invoke: MiddlewareFunction<T>;
 }
-interface MiddlewareFactory<T> {
+export interface MiddlewareFactory<T> {
     get(): Middleware<T>;
 }
 export declare class App<T> {
@@ -32,4 +29,3 @@ export declare class App<T> {
     useFactory(factory: MiddlewareFactory<T>): this;
     run(value: T): Promise<any>;
 }
-export {};
