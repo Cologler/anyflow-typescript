@@ -12,6 +12,12 @@ class ExecuteContext {
     get value() {
         return this._value;
     }
+    getState(key) {
+        return this._state[key];
+    }
+    setState(key, value) {
+        return this._state[key] = value;
+    }
 }
 class MiddlewareInvoker {
     constructor(_factorys, _context) {

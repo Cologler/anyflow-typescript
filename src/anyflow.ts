@@ -1,11 +1,20 @@
 export interface FlowContext<T> {
+
     /**
      * use for transfer data between middlewares.
+     *
+     * for symbol key: TypeScript does not support symbol yet.
+     * use `getState()` and `setState()`.
      *
      * @type {object}
      * @memberof FlowContext
      */
-    readonly state: object;
+    readonly state: {
+        [name: string]: any,
+        [name: number]: any,
+        // [name: symbol]: any, // TODO: ts does not support symbol yet. use `getState()` and `setState()`.
+    };
+
     /**
      * data input from App.run(value)
      *
@@ -13,6 +22,25 @@ export interface FlowContext<T> {
      * @memberof FlowContext
      */
     readonly value: T;
+
+    /**
+     * same as `this.state[name]`.
+     *
+     * @template TS
+     * @param {PropertyKey} name
+     * @returns {TS}
+     * @memberof FlowContext
+     */
+    getState<TS>(name: PropertyKey): TS;
+
+    /**
+     * same as `this.state[name]=value`.
+     *
+     * @param {PropertyKey} name
+     * @param {*} value
+     * @memberof FlowContext
+     */
+    setState(name: PropertyKey, value: any): void;
 }
 
 class ExecuteContext<T> implements FlowContext<T> {
@@ -30,6 +58,14 @@ class ExecuteContext<T> implements FlowContext<T> {
     get value() {
         return this._value;
     }
+
+    getState<TS>(key: PropertyKey) {
+        return this._state[key] as TS;
+    }
+
+    setState(key: PropertyKey, value: any): void {
+        return this._state[key] = value;
+    }
 }
 
 export type Next = () => Promise<any>;
@@ -37,7 +73,7 @@ export type Next = () => Promise<any>;
 export type MiddlewareFunction<T> = (context: FlowContext<T>, next: Next) => Promise<any>;
 
 export interface Middleware<T> {
-    invoke: MiddlewareFunction<T>;
+    invoke(context: FlowContext<T>, next: Next): Promise<any>;
 }
 
 export interface MiddlewareFactory<T> {
