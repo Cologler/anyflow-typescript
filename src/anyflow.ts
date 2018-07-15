@@ -106,6 +106,16 @@ class MiddlewareInvoker<T> {
     }
 }
 
+function middlewareify<T>(obj: Middleware<T> | MiddlewareFunction<T>): Middleware<T> {
+    if (typeof obj === 'function') {
+        return {
+            invoke: obj
+        };
+    } else {
+        return obj;
+    }
+}
+
 export class App<T> {
     private _factorys: MiddlewareFactory<T>[];
 
@@ -114,22 +124,11 @@ export class App<T> {
     }
 
     use(obj: Middleware<T> | MiddlewareFunction<T>): this {
-        let factory: MiddlewareFactory<T> = null;
-        if (typeof obj === 'function') {
-            let middleware: Middleware<T> = {
-                invoke: obj
-            };
-            factory = {
-                get: () => middleware
-            };
-        } else if (typeof obj === 'object') {
-            factory = {
-                get: () => obj
-            };
-        }
-        if (factory) {
-            this._factorys.push(factory);
-        }
+        let middleware = middlewareify<T>(obj);
+        let factory = {
+            get: () => middleware
+        };
+        this._factorys.push(factory);
         return this;
     }
 
@@ -143,4 +142,33 @@ export class App<T> {
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
     }
+}
+
+namespace Middlewares {
+
+    export class AorB<T> implements Middleware<T> {
+        constructor(
+            private _condition: (c: FlowContext<T>) => boolean,
+            private _a: Middleware<T>,
+            private _b: Middleware<T>) {
+        }
+
+        invoke(context: FlowContext<T>, next: Next): Promise<any> {
+            if (this._condition(context)) {
+                return this._a.invoke(context, next);
+            } else {
+                return this._b.invoke(context, next);
+            }
+        }
+    }
+}
+
+export function aorb<T>(condition: (c: FlowContext<T>) => boolean,
+    a: Middleware<T> | MiddlewareFunction<T>,
+    b: Middleware<T> | MiddlewareFunction<T>): Middleware<T> {
+
+    return new Middlewares.AorB(
+        condition,
+        middlewareify(a),
+        middlewareify(b));
 }

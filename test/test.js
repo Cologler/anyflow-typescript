@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { App } = require('../dist/anyflow.js');
+const { App, aorb } = require('../dist/anyflow.js');
 
 describe('anyflow', function() {
 
@@ -165,6 +165,24 @@ describe('anyflow', function() {
                 return await n(); // no next
             });
             assert.equal(await app.run(), undefined);
+        });
+    });
+
+    describe('#aorb()', function() {
+        it('should can switch by condition.', async function() {
+            const app = new App();
+            app.use(aorb(c => c.value === 1,
+                (c, n) => {
+                    assert.equal(c.value, 1);
+                    return n();
+                },
+                (c, n) => {
+                    assert.equal(c.value, 2);
+                    return n();
+                }
+            ));
+            await app.run(1);
+            await app.run(2);
         });
     });
 });

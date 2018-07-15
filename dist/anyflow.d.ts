@@ -50,5 +50,6 @@ export declare class App<T> {
     constructor();
     use(obj: Middleware<T> | MiddlewareFunction<T>): this;
     useFactory(factory: MiddlewareFactory<T>): this;
-    run(value: T): Promise<any>;
+    run<R>(value: T): Promise<R>;
 }
+export declare function aorb<T>(condition: (c: FlowContext<T>) => boolean, a: Middleware<T> | MiddlewareFunction<T>, b: Middleware<T> | MiddlewareFunction<T>): Middleware<T>;
