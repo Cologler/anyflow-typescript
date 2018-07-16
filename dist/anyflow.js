@@ -1,21 +1,22 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 class ExecuteContext {
-    constructor(value) {
+    constructor() {
         this._state = {};
-        this._value = value;
     }
     get state() {
         return this._state;
     }
-    get value() {
-        return this._value;
-    }
     getState(key) {
         return this._state[key];
     }
-    setState(key, value) {
-        return this._state[key] = value;
+    setState(key, value, readonly = false) {
+        if (readonly) {
+            Object.defineProperty(this._state, key, { value });
+        }
+        else {
+            this._state[key] = value;
+        }
     }
 }
 class MiddlewareInvoker {
@@ -65,10 +66,24 @@ class App {
         this._factorys.push(factory);
         return this;
     }
-    run(value, state = null) {
-        const context = new ExecuteContext(value);
-        if (state) {
-            Object.assign(context.state, state);
+    /**
+     * if state is a object, assign to context.state.
+     * otherwise assign to context.state.value.
+     *
+     * @template R
+     * @param {object} [state=undefined]
+     * @returns {Promise<R>}
+     * @memberof App
+     */
+    run(state = undefined) {
+        const context = new ExecuteContext();
+        if (state !== undefined) {
+            if (typeof state === 'object') {
+                Object.assign(context.state, state);
+            }
+            else {
+                context.setState('value', state);
+            }
         }
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();

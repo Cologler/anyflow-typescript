@@ -1,4 +1,4 @@
-export interface FlowContext<T> {
+export interface FlowContext {
     /**
      * use for transfer data between middlewares.
      *
@@ -12,13 +12,6 @@ export interface FlowContext<T> {
         [name: string]: any;
         [name: number]: any;
     };
-    /**
-     * data input from App.run(value)
-     *
-     * @type {T}
-     * @memberof FlowContext
-     */
-    readonly value: T;
     /**
      * same as `this.state[name]`.
      *
@@ -35,22 +28,31 @@ export interface FlowContext<T> {
      * @param {*} value
      * @memberof FlowContext
      */
-    setState(name: PropertyKey, value: any): void;
+    setState(name: PropertyKey, value: any, readonly?: boolean): void;
 }
 export declare type Next = () => Promise<any>;
-export declare type MiddlewareFunction<T> = (context: FlowContext<T>, next: Next) => Promise<any>;
-export interface Middleware<T> {
-    invoke(context: FlowContext<T>, next: Next): Promise<any>;
+export declare type MiddlewareFunction = (context: FlowContext, next: Next) => Promise<any>;
+export interface Middleware {
+    invoke(context: FlowContext, next: Next): Promise<any>;
 }
-export interface MiddlewareFactory<T> {
-    get(): Middleware<T>;
+export interface MiddlewareFactory {
+    get(): Middleware;
 }
-export declare class App<T> {
+export declare class App {
     private _factorys;
     constructor();
-    use(obj: Middleware<T> | MiddlewareFunction<T>): this;
-    useFactory(factory: MiddlewareFactory<T>): this;
-    run<R>(value: T, state?: object): Promise<R>;
+    use(obj: Middleware | MiddlewareFunction): this;
+    useFactory(factory: MiddlewareFactory): this;
+    /**
+     * if state is a object, assign to context.state.
+     * otherwise assign to context.state.value.
+     *
+     * @template R
+     * @param {object} [state=undefined]
+     * @returns {Promise<R>}
+     * @memberof App
+     */
+    run<R>(state?: object): Promise<R>;
 }
-export declare function aorb<T>(condition: (c: FlowContext<T>) => boolean, a: Middleware<T> | MiddlewareFunction<T>, b: Middleware<T> | MiddlewareFunction<T>): Middleware<T>;
-export declare function autonext<T>(callback: (context: FlowContext<T>) => Promise<any>): MiddlewareFunction<T>;
+export declare function aorb(condition: (c: FlowContext) => boolean, a: Middleware | MiddlewareFunction, b: Middleware | MiddlewareFunction): Middleware;
+export declare function autonext(callback: (context: FlowContext) => Promise<any>): MiddlewareFunction;

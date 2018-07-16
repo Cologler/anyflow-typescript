@@ -1,6 +1,6 @@
 import { stat } from "fs";
 
-export interface FlowContext<T> {
+export interface FlowContext {
 
     /**
      * use for transfer data between middlewares.
@@ -16,14 +16,6 @@ export interface FlowContext<T> {
         [name: number]: any,
         // [name: symbol]: any, // TODO: ts does not support symbol yet. use `getState()` and `setState()`.
     };
-
-    /**
-     * data input from App.run(value)
-     *
-     * @type {T}
-     * @memberof FlowContext
-     */
-    readonly value: T;
 
     /**
      * same as `this.state[name]`.
@@ -42,52 +34,47 @@ export interface FlowContext<T> {
      * @param {*} value
      * @memberof FlowContext
      */
-    setState(name: PropertyKey, value: any): void;
+    setState(name: PropertyKey, value: any, readonly?: boolean): void;
 }
 
-class ExecuteContext<T> implements FlowContext<T> {
-    private _value: T;
+class ExecuteContext implements FlowContext {
     private _state: object = {};
-
-    constructor(value: T) {
-        this._value = value;
-    }
 
     get state() {
         return this._state;
-    }
-
-    get value() {
-        return this._value;
     }
 
     getState<TS>(key: PropertyKey) {
         return this._state[key] as TS;
     }
 
-    setState(key: PropertyKey, value: any): void {
-        return this._state[key] = value;
+    setState(key: PropertyKey, value: any, readonly: boolean = false): void {
+        if (readonly) {
+            Object.defineProperty(this._state, key, { value });
+        } else {
+            this._state[key] = value;
+        }
     }
 }
 
 export type Next = () => Promise<any>;
 
-export type MiddlewareFunction<T> = (context: FlowContext<T>, next: Next) => Promise<any>;
+export type MiddlewareFunction = (context: FlowContext, next: Next) => Promise<any>;
 
-export interface Middleware<T> {
-    invoke(context: FlowContext<T>, next: Next): Promise<any>;
+export interface Middleware {
+    invoke(context: FlowContext, next: Next): Promise<any>;
 }
 
-export interface MiddlewareFactory<T> {
-    get(): Middleware<T>;
+export interface MiddlewareFactory {
+    get(): Middleware;
 }
 
-class MiddlewareInvoker<T> {
+class MiddlewareInvoker {
     private _index: number = 0;
 
     constructor(
-        private _factorys: MiddlewareFactory<T>[],
-        private _context: FlowContext<T>) {
+        private _factorys: MiddlewareFactory[],
+        private _context: FlowContext) {
     }
 
     next(): Promise<any> {
@@ -108,7 +95,7 @@ class MiddlewareInvoker<T> {
     }
 }
 
-function middlewareify<T>(obj: Middleware<T> | MiddlewareFunction<T>): Middleware<T> {
+function middlewareify(obj: Middleware | MiddlewareFunction): Middleware {
     if (typeof obj === 'function') {
         return {
             invoke: obj
@@ -118,15 +105,15 @@ function middlewareify<T>(obj: Middleware<T> | MiddlewareFunction<T>): Middlewar
     }
 }
 
-export class App<T> {
-    private _factorys: MiddlewareFactory<T>[];
+export class App {
+    private _factorys: MiddlewareFactory[];
 
     constructor() {
         this._factorys = [];
     }
 
-    use(obj: Middleware<T> | MiddlewareFunction<T>): this {
-        let middleware = middlewareify<T>(obj);
+    use(obj: Middleware | MiddlewareFunction): this {
+        let middleware = middlewareify(obj);
         let factory = {
             get: () => middleware
         };
@@ -134,15 +121,28 @@ export class App<T> {
         return this;
     }
 
-    useFactory(factory: MiddlewareFactory<T>): this {
+    useFactory(factory: MiddlewareFactory): this {
         this._factorys.push(factory);
         return this;
     }
 
-    run<R>(value: T, state: object=null): Promise<R> {
-        const context = new ExecuteContext<T>(value);
-        if (state) {
-            Object.assign(context.state, state);
+    /**
+     * if state is a object, assign to context.state.
+     * otherwise assign to context.state.value.
+     *
+     * @template R
+     * @param {object} [state=undefined]
+     * @returns {Promise<R>}
+     * @memberof App
+     */
+    run<R>(state: object = undefined): Promise<R> {
+        const context = new ExecuteContext();
+        if (state !== undefined) {
+            if (typeof state === 'object') {
+                Object.assign(context.state, state);
+            } else {
+                context.setState('value', state);
+            }
         }
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
@@ -151,14 +151,14 @@ export class App<T> {
 
 namespace Middlewares {
 
-    export class AorB<T> implements Middleware<T> {
+    export class AorB implements Middleware {
         constructor(
-            private _condition: (c: FlowContext<T>) => boolean,
-            private _a: Middleware<T>,
-            private _b: Middleware<T>) {
+            private _condition: (c: FlowContext) => boolean,
+            private _a: Middleware,
+            private _b: Middleware) {
         }
 
-        invoke(context: FlowContext<T>, next: Next): Promise<any> {
+        invoke(context: FlowContext, next: Next): Promise<any> {
             if (this._condition(context)) {
                 return this._a.invoke(context, next);
             } else {
@@ -168,9 +168,9 @@ namespace Middlewares {
     }
 }
 
-export function aorb<T>(condition: (c: FlowContext<T>) => boolean,
-    a: Middleware<T> | MiddlewareFunction<T>,
-    b: Middleware<T> | MiddlewareFunction<T>): Middleware<T> {
+export function aorb(condition: (c: FlowContext) => boolean,
+    a: Middleware | MiddlewareFunction,
+    b: Middleware | MiddlewareFunction): Middleware {
 
     return new Middlewares.AorB(
         condition,
@@ -178,7 +178,7 @@ export function aorb<T>(condition: (c: FlowContext<T>) => boolean,
         middlewareify(b));
 }
 
-export function autonext<T>(callback: (context: FlowContext<T>) => Promise<any>): MiddlewareFunction<T> {
+export function autonext(callback: (context: FlowContext) => Promise<any>): MiddlewareFunction {
     return async (c, n) => {
         await callback(c);
         await n();

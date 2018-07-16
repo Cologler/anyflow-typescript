@@ -109,35 +109,18 @@ describe('anyflow', function() {
     });
 
     describe('#run()~args', function() {
-        it('should can pass readonly argument by app.run()', async function() {
-            const app = new App();
-            app.use(async (c, n) => {
-                assert.equal(c.value, 1);
-            });
-            await app.run(1);
-        });
-
         it('should can pass state by app.run()', async function() {
             const app = new App();
             app.use(async (c, n) => {
                 assert.equal(c.state.a, 1);
             });
-            await app.run(null, { a: 1 });
-        });
-
-        it('should can get readonly argument from Context.value', async function() {
-            const app = new App();
-            app.use((c) => {
-                assert.equal(c.value, 2);
-                return 3;
-            });
-            await app.run(2);
+            await app.run({ a: 1 });
         });
 
         it('should can get state from Context.state', async function() {
             const app = new App();
             app.use(async (c, n) => {
-                assert.equal(c.state.a, undefined);
+                assert.equal(c.state.a, 1);
                 c.state.a = 3;
                 await n();
             });
@@ -150,7 +133,7 @@ describe('anyflow', function() {
                 assert.equal(c.state.a, 5);
                 await n();
             });
-            await app.run();
+            await app.run({ a: 1 });
         });
     });
 
@@ -189,13 +172,13 @@ describe('anyflow', function() {
     describe('#aorb()', function() {
         it('should can switch by condition.', async function() {
             const app = new App();
-            app.use(aorb(c => c.value === 1,
+            app.use(aorb(c => c.state.value === 1,
                 (c, n) => {
-                    assert.equal(c.value, 1);
+                    assert.equal(c.state.value, 1);
                     return n();
                 },
                 (c, n) => {
-                    assert.equal(c.value, 2);
+                    assert.equal(c.state.value, 2);
                     return n();
                 }
             ));
