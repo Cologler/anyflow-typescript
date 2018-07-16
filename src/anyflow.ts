@@ -1,6 +1,5 @@
-import { stat } from "fs";
 
-export interface FlowContext {
+export interface FlowContext<T extends object> {
 
     /**
      * use for transfer data between middlewares.
@@ -11,11 +10,7 @@ export interface FlowContext {
      * @type {object}
      * @memberof FlowContext
      */
-    readonly state: {
-        [name: string]: any,
-        [name: number]: any,
-        // [name: symbol]: any, // TODO: ts does not support symbol yet. use `getState()` and `setState()`.
-    };
+    readonly state: T;
 
     /**
      * same as `this.state[name]`.
@@ -37,11 +32,11 @@ export interface FlowContext {
     setState(name: PropertyKey, value: any, readonly?: boolean): void;
 }
 
-class ExecuteContext implements FlowContext {
+class ExecuteContext<T extends object> implements FlowContext<T> {
     private _state: object = {};
 
     get state() {
-        return this._state;
+        return this._state as T;
     }
 
     getState<TS>(key: PropertyKey) {
@@ -59,22 +54,22 @@ class ExecuteContext implements FlowContext {
 
 export type Next = () => Promise<any>;
 
-export type MiddlewareFunction = (context: FlowContext, next: Next) => Promise<any>;
+export type MiddlewareFunction<T extends object> = (context: FlowContext<T>, next: Next) => Promise<any>;
 
-export interface Middleware {
-    invoke(context: FlowContext, next: Next): Promise<any>;
+export interface Middleware<T extends object> {
+    invoke(context: FlowContext<T>, next: Next): Promise<any>;
 }
 
-export interface MiddlewareFactory {
-    get(): Middleware;
+export interface MiddlewareFactory<T extends object> {
+    get(): Middleware<T>;
 }
 
-class MiddlewareInvoker {
+class MiddlewareInvoker<T extends object> {
     private _index: number = 0;
 
     constructor(
-        private _factorys: MiddlewareFactory[],
-        private _context: FlowContext) {
+        private _factorys: MiddlewareFactory<T>[],
+        private _context: FlowContext<T>) {
     }
 
     next(): Promise<any> {
@@ -95,7 +90,7 @@ class MiddlewareInvoker {
     }
 }
 
-function middlewareify(obj: Middleware | MiddlewareFunction): Middleware {
+function middlewareify<T extends object>(obj: Middleware<T> | MiddlewareFunction<T>): Middleware<T> {
     if (typeof obj === 'function') {
         return {
             invoke: obj
@@ -105,14 +100,14 @@ function middlewareify(obj: Middleware | MiddlewareFunction): Middleware {
     }
 }
 
-export class App {
-    private _factorys: MiddlewareFactory[];
+export class App<T extends object> {
+    private _factorys: MiddlewareFactory<T>[];
 
     constructor() {
         this._factorys = [];
     }
 
-    use(obj: Middleware | MiddlewareFunction): this {
+    use(obj: Middleware<T> | MiddlewareFunction<T>): this {
         let middleware = middlewareify(obj);
         let factory = {
             get: () => middleware
@@ -121,7 +116,7 @@ export class App {
         return this;
     }
 
-    useFactory(factory: MiddlewareFactory): this {
+    useFactory(factory: MiddlewareFactory<T>): this {
         this._factorys.push(factory);
         return this;
     }
@@ -151,14 +146,14 @@ export class App {
 
 namespace Middlewares {
 
-    export class AorB implements Middleware {
+    export class AorB<T extends object> implements Middleware<T> {
         constructor(
-            private _condition: (c: FlowContext) => boolean,
-            private _a: Middleware,
-            private _b: Middleware) {
+            private _condition: (c: FlowContext<T>) => boolean,
+            private _a: Middleware<T>,
+            private _b: Middleware<T>) {
         }
 
-        invoke(context: FlowContext, next: Next): Promise<any> {
+        invoke(context: FlowContext<T>, next: Next): Promise<any> {
             if (this._condition(context)) {
                 return this._a.invoke(context, next);
             } else {
@@ -168,9 +163,9 @@ namespace Middlewares {
     }
 }
 
-export function aorb(condition: (c: FlowContext) => boolean,
-    a: Middleware | MiddlewareFunction,
-    b: Middleware | MiddlewareFunction): Middleware {
+export function aorb<T extends object>(condition: (c: FlowContext<T>) => boolean,
+    a: Middleware<T> | MiddlewareFunction<T>,
+    b: Middleware<T> | MiddlewareFunction<T>): Middleware<T> {
 
     return new Middlewares.AorB(
         condition,
@@ -178,9 +173,11 @@ export function aorb(condition: (c: FlowContext) => boolean,
         middlewareify(b));
 }
 
-export function autonext(callback: (context: FlowContext) => Promise<any>): MiddlewareFunction {
+export function autonext<T extends object>(callback: (context: FlowContext<T>) => Promise<any>)
+    : MiddlewareFunction<T> {
+
     return async (c, n) => {
         await callback(c);
-        await n();
+        return await n();
     }
 }

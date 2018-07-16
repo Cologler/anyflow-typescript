@@ -117,7 +117,7 @@ exports.aorb = aorb;
 function autonext(callback) {
     return async (c, n) => {
         await callback(c);
-        await n();
+        return await n();
     };
 }
 exports.autonext = autonext;
