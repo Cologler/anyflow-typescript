@@ -66,8 +66,11 @@ class App {
         this._factorys.push(factory);
         return this;
     }
-    run(value) {
+    run(value, state = null) {
         const context = new ExecuteContext(value);
+        if (state) {
+            Object.assign(context.state, state);
+        }
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
     }
@@ -96,6 +99,13 @@ function aorb(condition, a, b) {
     return new Middlewares.AorB(condition, middlewareify(a), middlewareify(b));
 }
 exports.aorb = aorb;
+function autonext(callback) {
+    return async (c, n) => {
+        await callback(c);
+        await n();
+    };
+}
+exports.autonext = autonext;
 
 },{}]},{},[1])(1)
 });

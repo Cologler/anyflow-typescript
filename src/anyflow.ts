@@ -1,3 +1,5 @@
+import { stat } from "fs";
+
 export interface FlowContext<T> {
 
     /**
@@ -137,8 +139,11 @@ export class App<T> {
         return this;
     }
 
-    run<R>(value: T): Promise<R> {
+    run<R>(value: T, state: object=null): Promise<R> {
         const context = new ExecuteContext<T>(value);
+        if (state) {
+            Object.assign(context.state, state);
+        }
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
     }
@@ -171,4 +176,11 @@ export function aorb<T>(condition: (c: FlowContext<T>) => boolean,
         condition,
         middlewareify(a),
         middlewareify(b));
+}
+
+export function autonext<T>(callback: (context: FlowContext<T>) => Promise<any>): MiddlewareFunction<T> {
+    return async (c, n) => {
+        await callback(c);
+        await n();
+    }
 }

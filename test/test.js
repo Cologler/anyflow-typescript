@@ -106,8 +106,26 @@ describe('anyflow', function() {
             await app.run();
             assert.equal(a, 2);
         });
+    });
 
-        it('should pass argument by Context.value', async function() {
+    describe('#run()~args', function() {
+        it('should can pass readonly argument by app.run()', async function() {
+            const app = new App();
+            app.use(async (c, n) => {
+                assert.equal(c.value, 1);
+            });
+            await app.run(1);
+        });
+
+        it('should can pass state by app.run()', async function() {
+            const app = new App();
+            app.use(async (c, n) => {
+                assert.equal(c.state.a, 1);
+            });
+            await app.run(null, { a: 1 });
+        });
+
+        it('should can get readonly argument from Context.value', async function() {
             const app = new App();
             app.use((c) => {
                 assert.equal(c.value, 2);
@@ -116,7 +134,7 @@ describe('anyflow', function() {
             await app.run(2);
         });
 
-        it('should pass state by Context.state', async function() {
+        it('should can get state from Context.state', async function() {
             const app = new App();
             app.use(async (c, n) => {
                 assert.equal(c.state.a, undefined);

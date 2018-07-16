@@ -50,6 +50,7 @@ export declare class App<T> {
     constructor();
     use(obj: Middleware<T> | MiddlewareFunction<T>): this;
     useFactory(factory: MiddlewareFactory<T>): this;
-    run<R>(value: T): Promise<R>;
+    run<R>(value: T, state?: object): Promise<R>;
 }
 export declare function aorb<T>(condition: (c: FlowContext<T>) => boolean, a: Middleware<T> | MiddlewareFunction<T>, b: Middleware<T> | MiddlewareFunction<T>): Middleware<T>;
+export declare function autonext<T>(callback: (context: FlowContext<T>) => Promise<any>): MiddlewareFunction<T>;
