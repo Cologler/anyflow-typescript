@@ -60,6 +60,8 @@ export interface Middleware<T extends object> {
     invoke(context: FlowContext<T>, next: Next): Promise<any>;
 }
 
+type MiddlewareType<T extends object> = Middleware<T> | MiddlewareFunction<T>;
+
 export interface MiddlewareFactory<T extends object> {
     get(): Middleware<T>;
 }
@@ -90,7 +92,10 @@ class MiddlewareInvoker<T extends object> {
     }
 }
 
-function middlewareify<T extends object>(obj: Middleware<T> | MiddlewareFunction<T>): Middleware<T> {
+function toMiddleware<T extends object>(obj: MiddlewareType<T>): Middleware<T> {
+    if (obj === null) {
+        return null;
+    }
     if (typeof obj === 'function') {
         return {
             invoke: obj
@@ -107,8 +112,8 @@ export class App<T extends object> {
         this._factorys = [];
     }
 
-    use(obj: Middleware<T> | MiddlewareFunction<T>): this {
-        let middleware = middlewareify(obj);
+    use(obj: MiddlewareType<T>): this {
+        let middleware = toMiddleware(obj);
         let factory = {
             get: () => middleware
         };
@@ -155,22 +160,27 @@ namespace Middlewares {
 
         invoke(context: FlowContext<T>, next: Next): Promise<any> {
             if (this._condition(context)) {
-                return this._a.invoke(context, next);
+                if (this._a) {
+                    return this._a.invoke(context, next);
+                }
             } else {
-                return this._b.invoke(context, next);
+                if (this._b) {
+                    return this._b.invoke(context, next);
+                }
             }
+            return next();
         }
     }
 }
 
 export function aorb<T extends object>(condition: (c: FlowContext<T>) => boolean,
-    a: Middleware<T> | MiddlewareFunction<T>,
-    b: Middleware<T> | MiddlewareFunction<T>): Middleware<T> {
+    a: MiddlewareType<T>,
+    b: MiddlewareType<T>): Middleware<T> {
 
     return new Middlewares.AorB(
         condition,
-        middlewareify(a),
-        middlewareify(b));
+        toMiddleware(a),
+        toMiddleware(b));
 }
 
 export function autonext<T extends object>(callback: (context: FlowContext<T>) => Promise<any>)
