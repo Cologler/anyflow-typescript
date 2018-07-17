@@ -80,10 +80,12 @@ class MiddlewareInvoker<T extends object> {
         }
 
         // create next
-        let nextPromist = null;
+        // middleware.invoke() maybe return null/undefined,
+        // so I use array to ensure `nextPromise || ?` work only call once.
+        let nextPromise: [Promise<any>] = null;
         const next: Next = async () => {
-            nextPromist = nextPromist || this.next();
-            return nextPromist;
+            nextPromise = nextPromise || [this.next()];
+            return nextPromise[0];
         };
 
         const factory = this._factorys[this._index++];

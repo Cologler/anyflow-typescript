@@ -1,6 +1,6 @@
 {
   "name": "anyflow",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "",
   "main": "dist/anyflow.js",
   "jsdelivr": "./dist/anyflow.browser.js",
@@ -11,7 +11,7 @@
     "mocha": "^5.2.0"
   },
   "scripts": {
-    "test": "mocha",
+    "test": "tsc && mocha",
     "prepare": "tsc",
     "browserify": "tsc && browserify . -s anyflow -o dist/anyflow.browser.js"
   },

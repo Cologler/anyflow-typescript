@@ -32,13 +32,14 @@ export declare type MiddlewareFunction<T extends object> = (context: FlowContext
 export interface Middleware<T extends object> {
     invoke(context: FlowContext<T>, next: Next): Promise<any>;
 }
+declare type MiddlewareType<T extends object> = Middleware<T> | MiddlewareFunction<T>;
 export interface MiddlewareFactory<T extends object> {
     get(): Middleware<T>;
 }
 export declare class App<T extends object> {
     private _factorys;
     constructor();
-    use(obj: Middleware<T> | MiddlewareFunction<T>): this;
+    use(obj: MiddlewareType<T>): this;
     useFactory(factory: MiddlewareFactory<T>): this;
     /**
      * if state is a object, assign to context.state.
@@ -51,5 +52,6 @@ export declare class App<T extends object> {
      */
     run<R>(state?: object): Promise<R>;
 }
-export declare function aorb<T extends object>(condition: (c: FlowContext<T>) => boolean, a: Middleware<T> | MiddlewareFunction<T>, b: Middleware<T> | MiddlewareFunction<T>): Middleware<T>;
+export declare function aorb<T extends object>(condition: (c: FlowContext<T>) => boolean, a: MiddlewareType<T>, b: MiddlewareType<T>): Middleware<T>;
 export declare function autonext<T extends object>(callback: (context: FlowContext<T>) => Promise<any>): MiddlewareFunction<T>;
+export {};

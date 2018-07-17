@@ -30,17 +30,22 @@ class MiddlewareInvoker {
             return Promise.resolve(undefined);
         }
         // create next
-        let nextPromist = null;
+        // middleware.invoke() maybe return null/undefined,
+        // so I use array to ensure `nextPromise || ?` work only call once.
+        let nextPromise = null;
         const next = async () => {
-            nextPromist = nextPromist || this.next();
-            return nextPromist;
+            nextPromise = nextPromise || [this.next()];
+            return nextPromise[0];
         };
         const factory = this._factorys[this._index++];
         const middleware = factory.get();
         return middleware.invoke(this._context, next);
     }
 }
-function middlewareify(obj) {
+function toMiddleware(obj) {
+    if (obj === null) {
+        return null;
+    }
     if (typeof obj === 'function') {
         return {
             invoke: obj
@@ -55,7 +60,7 @@ class App {
         this._factorys = [];
     }
     use(obj) {
-        let middleware = middlewareify(obj);
+        let middleware = toMiddleware(obj);
         let factory = {
             get: () => middleware
         };
@@ -100,17 +105,22 @@ var Middlewares;
         }
         invoke(context, next) {
             if (this._condition(context)) {
-                return this._a.invoke(context, next);
+                if (this._a) {
+                    return this._a.invoke(context, next);
+                }
             }
             else {
-                return this._b.invoke(context, next);
+                if (this._b) {
+                    return this._b.invoke(context, next);
+                }
             }
+            return next();
         }
     }
     Middlewares.AorB = AorB;
 })(Middlewares || (Middlewares = {}));
 function aorb(condition, a, b) {
-    return new Middlewares.AorB(condition, middlewareify(a), middlewareify(b));
+    return new Middlewares.AorB(condition, toMiddleware(a), toMiddleware(b));
 }
 exports.aorb = aorb;
 function autonext(callback) {
