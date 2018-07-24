@@ -79,7 +79,20 @@ export interface MiddlewareFactory<T extends object> {
 class MiddlewareInvoker<T extends object> {
     constructor(
         private _factorys: MiddlewareFactory<T>[],
-        private _context: ExecuteContext<T>) {
+        private _context: ExecuteContext<T>,
+        private _next: Next = null) {
+    }
+
+    getNext(index): Next {
+        // create next
+        // middleware.invoke() maybe return null/undefined,
+        // so I use array to ensure `nextPromise || ?` work only call once.
+        let nextPromise: [Promise<any>] = null;
+        let next: Next = () => {
+            nextPromise = nextPromise || [this.next(index + 1)];
+            return nextPromise[0];
+        };
+        return next;
     }
 
     next(index = 0): Promise<any> {
@@ -87,16 +100,13 @@ class MiddlewareInvoker<T extends object> {
             return Promise.resolve(undefined);
         }
 
-        // create next
-        // middleware.invoke() maybe return null/undefined,
-        // so I use array to ensure `nextPromise || ?` work only call once.
-        let nextPromise: [Promise<any>] = null;
-        const next: Next = () => {
-            nextPromise = nextPromise || [this.next(index + 1)];
-            return nextPromise[0];
-        };
+        let next = this.getNext(index);
 
         this._context.hasNext = index + 1 !== this._factorys.length;
+        if (!this._context.hasNext && this._next) {
+            this._context.hasNext = true;
+            next = this._next;
+        }
 
         const factory = this._factorys[index];
         const middleware = factory.get();
@@ -117,8 +127,14 @@ function toMiddleware<T extends object>(obj: MiddlewareType<T>): Middleware<T> {
     }
 }
 
-export class App<T extends object> {
-    private _factorys: MiddlewareFactory<T>[];
+interface IAppBuilder<T extends object> {
+    use(obj: MiddlewareType<T>): this;
+    useFactory(factory: MiddlewareFactory<T>): this;
+    branch(condition: (c: FlowContext<T>) => boolean): IAppBuilder<T>;
+}
+
+export class App<T extends object> implements IAppBuilder<T> {
+    protected _factorys: MiddlewareFactory<T>[];
 
     constructor() {
         this._factorys = [];
@@ -136,6 +152,12 @@ export class App<T extends object> {
     useFactory(factory: MiddlewareFactory<T>): this {
         this._factorys.push(factory);
         return this;
+    }
+
+    branch(condition: (c: FlowContext<T>) => boolean): IAppBuilder<T> {
+        const m = new Branch<T>(condition);
+        this.use(m);
+        return m;
     }
 
     /**
@@ -158,6 +180,24 @@ export class App<T extends object> {
         }
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
         return invoker.next();
+    }
+}
+
+class Branch<T extends object> extends App<T> implements Middleware<T> {
+    constructor(private _condition: (c: FlowContext<T>) => boolean) {
+        super();
+    }
+
+    invoke(context: FlowContext<T>, next: Next): Promise<any> {
+        if (this._condition(context)) {
+            const invoker = new MiddlewareInvoker(
+                this._factorys.slice(),
+                context as ExecuteContext<T>,
+                next);
+            return invoker.next();
+        } else {
+            return next();
+        }
     }
 }
 

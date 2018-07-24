@@ -43,11 +43,17 @@ declare type MiddlewareType<T extends object> = Middleware<T> | MiddlewareFuncti
 export interface MiddlewareFactory<T extends object> {
     get(): Middleware<T>;
 }
-export declare class App<T extends object> {
-    private _factorys;
+interface IAppBuilder<T extends object> {
+    use(obj: MiddlewareType<T>): this;
+    useFactory(factory: MiddlewareFactory<T>): this;
+    branch(condition: (c: FlowContext<T>) => boolean): IAppBuilder<T>;
+}
+export declare class App<T extends object> implements IAppBuilder<T> {
+    protected _factorys: MiddlewareFactory<T>[];
     constructor();
     use(obj: MiddlewareType<T>): this;
     useFactory(factory: MiddlewareFactory<T>): this;
+    branch(condition: (c: FlowContext<T>) => boolean): IAppBuilder<T>;
     /**
      * if state is a object, assign to context.state.
      * otherwise assign to context.state.value.

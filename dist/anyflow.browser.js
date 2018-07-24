@@ -22,23 +22,32 @@ class ExecuteContext {
     }
 }
 class MiddlewareInvoker {
-    constructor(_factorys, _context) {
+    constructor(_factorys, _context, _next = null) {
         this._factorys = _factorys;
         this._context = _context;
+        this._next = _next;
+    }
+    getNext(index) {
+        // create next
+        // middleware.invoke() maybe return null/undefined,
+        // so I use array to ensure `nextPromise || ?` work only call once.
+        let nextPromise = null;
+        let next = () => {
+            nextPromise = nextPromise || [this.next(index + 1)];
+            return nextPromise[0];
+        };
+        return next;
     }
     next(index = 0) {
         if (index === this._factorys.length) {
             return Promise.resolve(undefined);
         }
-        // create next
-        // middleware.invoke() maybe return null/undefined,
-        // so I use array to ensure `nextPromise || ?` work only call once.
-        let nextPromise = null;
-        const next = () => {
-            nextPromise = nextPromise || [this.next(index + 1)];
-            return nextPromise[0];
-        };
+        let next = this.getNext(index);
         this._context.hasNext = index + 1 !== this._factorys.length;
+        if (!this._context.hasNext && this._next) {
+            this._context.hasNext = true;
+            next = this._next;
+        }
         const factory = this._factorys[index];
         const middleware = factory.get();
         return middleware.invoke(this._context, next);
@@ -73,6 +82,11 @@ class App {
         this._factorys.push(factory);
         return this;
     }
+    branch(condition) {
+        const m = new Branch(condition);
+        this.use(m);
+        return m;
+    }
     /**
      * if state is a object, assign to context.state.
      * otherwise assign to context.state.value.
@@ -97,6 +111,21 @@ class App {
     }
 }
 exports.App = App;
+class Branch extends App {
+    constructor(_condition) {
+        super();
+        this._condition = _condition;
+    }
+    invoke(context, next) {
+        if (this._condition(context)) {
+            const invoker = new MiddlewareInvoker(this._factorys.slice(), context, next);
+            return invoker.next();
+        }
+        else {
+            return next();
+        }
+    }
+}
 var Middlewares;
 (function (Middlewares) {
     class AorB {

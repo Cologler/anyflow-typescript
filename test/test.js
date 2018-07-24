@@ -210,4 +210,91 @@ describe('anyflow', function() {
             await app.run(2);
         });
     });
+
+    describe('branch', function() {
+        it('should can add branches', async function() {
+            const app = new App();
+            let value1 = 1;
+            let value2 = 1;
+            let b = app.branch(c => true);
+            b.use((c, n) => {
+                value1 = 2;
+                return n();
+            });
+            b.use((c, n) => {
+                value2 = 3;
+                return n();
+            });
+            await app.run(1);
+            assert.strictEqual(value1, 2);
+            assert.strictEqual(value2, 3);
+        });
+
+        it('should not call when false', async function() {
+            const app = new App();
+            let value1 = 1;
+            let value2 = 1;
+            let b = app.branch(c => false);
+            b.use((c, n) => {
+                assert.fail('should not go here.');
+                return n();
+            });
+            b.use((c, n) => {
+                assert.fail('should not go here.');
+                return n();
+            });
+            await app.run(1);
+            assert.strictEqual(value1, 1);
+            assert.strictEqual(value2, 1);
+        });
+
+        it('should not call when false', async function() {
+            const app = new App();
+            const data = {};
+            let order = 0;
+            app.use((c, n) => {
+                data.m1 = order++;
+                return n();
+            });
+            app.use((c, n) => {
+                data.m2 = order++;
+                return n();
+            });
+            const b1 = app.branch(c => true);
+            b1.use((c, n) => {
+                data.b1m1 = order++;
+                return n();
+            });
+            b1.use((c, n) => {
+                data.b1m2 = order++;
+                return n();
+            });
+            const b2 = app.branch(c => false);
+            b2.use((c, n) => {
+                assert.fail('should not go here.');
+                return n();
+            });
+            b2.use((c, n) => {
+                assert.fail('should not go here.');
+                return n();
+            });
+            app.use((c, n) => {
+                data.m3 = order++;
+                return n();
+            });
+            app.use((c, n) => {
+                data.m4 = order++;
+                return n();
+            });
+            await app.run();
+            assert.deepStrictEqual(data, {
+                m1: 0,
+                m2: 1,
+                b1m1: 2,
+                b1m2: 3,
+                m3: 4,
+                m4: 5,
+            });
+        });
+    });
 });
