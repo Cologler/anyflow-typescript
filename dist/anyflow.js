@@ -1,4 +1,5 @@
 "use strict";
+/* Copyright (c) 2018~2999 - Cologler <skyoflw@gmail.com> */
 Object.defineProperty(exports, "__esModule", { value: true });
 class ExecuteContext {
     constructor() {
@@ -23,10 +24,9 @@ class MiddlewareInvoker {
     constructor(_factorys, _context) {
         this._factorys = _factorys;
         this._context = _context;
-        this._index = 0;
     }
-    next() {
-        if (this._index === this._factorys.length) {
+    next(index = 0) {
+        if (index === this._factorys.length) {
             return Promise.resolve(undefined);
         }
         // create next
@@ -34,10 +34,10 @@ class MiddlewareInvoker {
         // so I use array to ensure `nextPromise || ?` work only call once.
         let nextPromise = null;
         const next = async () => {
-            nextPromise = nextPromise || [this.next()];
+            nextPromise = nextPromise || [this.next(index + 1)];
             return nextPromise[0];
         };
-        const factory = this._factorys[this._index++];
+        const factory = this._factorys[index];
         const middleware = factory.get();
         return middleware.invoke(this._context, next);
     }

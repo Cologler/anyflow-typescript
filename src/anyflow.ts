@@ -1,3 +1,4 @@
+/* Copyright (c) 2018~2999 - Cologler <skyoflw@gmail.com> */
 
 export interface FlowContext<T extends object> {
 
@@ -67,15 +68,13 @@ export interface MiddlewareFactory<T extends object> {
 }
 
 class MiddlewareInvoker<T extends object> {
-    private _index: number = 0;
-
     constructor(
         private _factorys: MiddlewareFactory<T>[],
         private _context: FlowContext<T>) {
     }
 
-    next(): Promise<any> {
-        if (this._index === this._factorys.length) {
+    next(index = 0): Promise<any> {
+        if (index === this._factorys.length) {
             return Promise.resolve(undefined);
         }
 
@@ -84,11 +83,11 @@ class MiddlewareInvoker<T extends object> {
         // so I use array to ensure `nextPromise || ?` work only call once.
         let nextPromise: [Promise<any>] = null;
         const next: Next = async () => {
-            nextPromise = nextPromise || [this.next()];
+            nextPromise = nextPromise || [this.next(index + 1)];
             return nextPromise[0];
         };
 
-        const factory = this._factorys[this._index++];
+        const factory = this._factorys[index];
         const middleware = factory.get();
         return middleware.invoke(this._context, next);
     }
