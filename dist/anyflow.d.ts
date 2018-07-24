@@ -46,14 +46,17 @@ export interface MiddlewareFactory<T extends object> {
 interface IAppBuilder<T extends object> {
     use(obj: MiddlewareType<T>): this;
     useFactory(factory: MiddlewareFactory<T>): this;
-    branch(condition: (c: FlowContext<T>) => boolean): IAppBuilder<T>;
+    branch(condition: (c: FlowContext<T>) => boolean): IBranchBuilder<T>;
+}
+interface IBranchBuilder<T extends object> extends IAppBuilder<T> {
+    else(): IBranchBuilder<T>;
 }
 export declare class App<T extends object> implements IAppBuilder<T> {
     protected _factorys: MiddlewareFactory<T>[];
     constructor();
     use(obj: MiddlewareType<T>): this;
     useFactory(factory: MiddlewareFactory<T>): this;
-    branch(condition: (c: FlowContext<T>) => boolean): IAppBuilder<T>;
+    branch(condition: (c: FlowContext<T>) => boolean): IBranchBuilder<T>;
     /**
      * if state is a object, assign to context.state.
      * otherwise assign to context.state.value.
@@ -65,6 +68,5 @@ export declare class App<T extends object> implements IAppBuilder<T> {
      */
     run<R>(state?: object): Promise<R>;
 }
-export declare function aorb<T extends object>(condition: (c: FlowContext<T>) => boolean, a: MiddlewareType<T>, b: MiddlewareType<T>): Middleware<T>;
 export declare function autonext<T extends object>(callback: (context: FlowContext<T>) => Promise<any>): MiddlewareFunction<T>;
 export {};

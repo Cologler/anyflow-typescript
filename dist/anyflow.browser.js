@@ -83,7 +83,10 @@ class App {
         return this;
     }
     branch(condition) {
-        const m = new Branch(condition);
+        if (typeof condition !== 'function') {
+            throw new Error('condition must be a function.');
+        }
+        const m = new Branch(condition, null);
         this.use(m);
         return m;
     }
@@ -112,48 +115,29 @@ class App {
 }
 exports.App = App;
 class Branch extends App {
-    constructor(_condition) {
+    constructor(_condition, _else) {
         super();
         this._condition = _condition;
+        this._else = _else;
     }
     invoke(context, next) {
-        if (this._condition(context)) {
+        if (this._condition === null || this._condition(context)) {
+            // else branch or condition branch matched
             const invoker = new MiddlewareInvoker(this._factorys.slice(), context, next);
             return invoker.next();
         }
-        else {
-            return next();
+        if (this._condition !== null && this._else) {
+            return this._else.invoke(context, next);
         }
+        return next();
+    }
+    else() {
+        if (this._else === null) {
+            this._else = new Branch(null, this);
+        }
+        return this._else;
     }
 }
-var Middlewares;
-(function (Middlewares) {
-    class AorB {
-        constructor(_condition, _a, _b) {
-            this._condition = _condition;
-            this._a = _a;
-            this._b = _b;
-        }
-        invoke(context, next) {
-            if (this._condition(context)) {
-                if (this._a) {
-                    return this._a.invoke(context, next);
-                }
-            }
-            else {
-                if (this._b) {
-                    return this._b.invoke(context, next);
-                }
-            }
-            return next();
-        }
-    }
-    Middlewares.AorB = AorB;
-})(Middlewares || (Middlewares = {}));
-function aorb(condition, a, b) {
-    return new Middlewares.AorB(condition, toMiddleware(a), toMiddleware(b));
-}
-exports.aorb = aorb;
 function autonext(callback) {
     return async (c, n) => {
         await callback(c);

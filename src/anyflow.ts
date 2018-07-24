@@ -130,7 +130,11 @@ function toMiddleware<T extends object>(obj: MiddlewareType<T>): Middleware<T> {
 interface IAppBuilder<T extends object> {
     use(obj: MiddlewareType<T>): this;
     useFactory(factory: MiddlewareFactory<T>): this;
-    branch(condition: (c: FlowContext<T>) => boolean): IAppBuilder<T>;
+    branch(condition: (c: FlowContext<T>) => boolean): IBranchBuilder<T>;
+}
+
+interface IBranchBuilder<T extends object> extends IAppBuilder<T> {
+    else(): IBranchBuilder<T>;
 }
 
 export class App<T extends object> implements IAppBuilder<T> {
@@ -154,8 +158,11 @@ export class App<T extends object> implements IAppBuilder<T> {
         return this;
     }
 
-    branch(condition: (c: FlowContext<T>) => boolean): IAppBuilder<T> {
-        const m = new Branch<T>(condition);
+    branch(condition: (c: FlowContext<T>) => boolean): IBranchBuilder<T> {
+        if (typeof condition !== 'function') {
+            throw new Error('condition must be a function.');
+        }
+        const m = new Branch<T>(condition, null);
         this.use(m);
         return m;
     }
@@ -183,56 +190,37 @@ export class App<T extends object> implements IAppBuilder<T> {
     }
 }
 
-class Branch<T extends object> extends App<T> implements Middleware<T> {
-    constructor(private _condition: (c: FlowContext<T>) => boolean) {
+class Branch<T extends object> extends App<T> implements Middleware<T>, IBranchBuilder<T> {
+    constructor(
+        private _condition: (c: FlowContext<T>) => boolean | null,
+        private _else: Branch<T> | null) {
+
         super();
     }
 
     invoke(context: FlowContext<T>, next: Next): Promise<any> {
-        if (this._condition(context)) {
+        if (this._condition === null || this._condition(context)) {
+            // else branch or condition branch matched
             const invoker = new MiddlewareInvoker(
                 this._factorys.slice(),
                 context as ExecuteContext<T>,
                 next);
             return invoker.next();
-        } else {
-            return next();
         }
+
+        if (this._condition !== null && this._else) {
+            return this._else.invoke(context, next);
+        }
+
+        return next();
     }
-}
 
-namespace Middlewares {
-
-    export class AorB<T extends object> implements Middleware<T> {
-        constructor(
-            private _condition: (c: FlowContext<T>) => boolean,
-            private _a: Middleware<T>,
-            private _b: Middleware<T>) {
+    else(): IBranchBuilder<T> {
+        if (this._else === null) {
+            this._else = new Branch<T>(null, this);
         }
-
-        invoke(context: FlowContext<T>, next: Next): Promise<any> {
-            if (this._condition(context)) {
-                if (this._a) {
-                    return this._a.invoke(context, next);
-                }
-            } else {
-                if (this._b) {
-                    return this._b.invoke(context, next);
-                }
-            }
-            return next();
-        }
+        return this._else;
     }
-}
-
-export function aorb<T extends object>(condition: (c: FlowContext<T>) => boolean,
-    a: MiddlewareType<T>,
-    b: MiddlewareType<T>): Middleware<T> {
-
-    return new Middlewares.AorB(
-        condition,
-        toMiddleware(a),
-        toMiddleware(b));
 }
 
 export function autonext<T extends object>(callback: (context: FlowContext<T>) => Promise<any>)

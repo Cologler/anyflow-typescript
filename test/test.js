@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { App, aorb } = require('../dist/anyflow.js');
+const { App } = require('../dist/anyflow.js');
 
 describe('anyflow', function() {
 
@@ -193,25 +193,35 @@ describe('anyflow', function() {
         });
     });
 
-    describe('#aorb()', function() {
+    describe('branch', function() {
+
         it('should can switch by condition.', async function() {
             const app = new App();
-            app.use(aorb(c => c.state.value === 1,
-                (c, n) => {
-                    assert.equal(c.state.value, 1);
-                    return n();
-                },
-                (c, n) => {
-                    assert.equal(c.state.value, 2);
-                    return n();
-                }
-            ));
-            await app.run(1);
-            await app.run(2);
+            const b = app.branch(c => c.state.value === 1);
+            b.use(async (c, n) => {
+                assert.equal(c.state.value, 1);
+                return 5;
+            });
+            b.else().use(async (c, n) => {
+                assert.equal(c.state.value, 2);
+                return 6;
+            });
+            assert.strictEqual(await app.run(1), 5);
+            assert.strictEqual(await app.run(2), 6);
         });
-    });
 
-    describe('branch', function() {
+        it('should has same else()', async function() {
+            const app = new App();
+
+            const b1 = app.branch(c => true);
+            assert.strictEqual(b1.else(), b1.else());
+            assert.strictEqual(b1.else().else(), b1);
+
+            const b2 = app.branch(c => false);
+            assert.strictEqual(b2.else(), b2.else());
+            assert.strictEqual(b2.else().else(), b2);
+        });
+
         it('should can add branches', async function() {
             const app = new App();
             let value1 = 1;
@@ -225,6 +235,10 @@ describe('anyflow', function() {
                 value2 = 3;
                 return n();
             });
+            b.else().use((c, n) => {
+                assert.fail('should not go here.');
+                return n();
+            });
             await app.run(1);
             assert.strictEqual(value1, 2);
             assert.strictEqual(value2, 3);
@@ -232,8 +246,7 @@ describe('anyflow', function() {
 
         it('should not call when false', async function() {
             const app = new App();
-            let value1 = 1;
-            let value2 = 1;
+            let value = 1;
             let b = app.branch(c => false);
             b.use((c, n) => {
                 assert.fail('should not go here.');
@@ -243,9 +256,12 @@ describe('anyflow', function() {
                 assert.fail('should not go here.');
                 return n();
             });
+            b.else().use((c, n) => {
+                value = 2;
+                return n();
+            });
             await app.run(1);
-            assert.strictEqual(value1, 1);
-            assert.strictEqual(value2, 1);
+            assert.strictEqual(value, 2);
         });
 
         it('should not call when false', async function() {
