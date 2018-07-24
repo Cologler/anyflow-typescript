@@ -48,7 +48,12 @@ describe('anyflow', function() {
 
     describe('#run()', function() {
 
-        it('should call middleware by #run()', async function() {
+        it('should not throw error when app is empty.', async function() {
+            const app = new App();
+            assert.equal(await app.run(), undefined);
+        });
+
+        it('should invoke middleware by call #run()', async function() {
             const app = new App();
             let a = 1;
             app.use(async () => {
@@ -58,7 +63,7 @@ describe('anyflow', function() {
             assert.equal(a, 2);
         });
 
-        it('should call next middleware if `await next()`', function() {
+        it('should invoke next middleware by call `await next()`', function() {
             const app = new App();
             let a = 1;
             app.use(async (c, n) => {
@@ -76,7 +81,7 @@ describe('anyflow', function() {
             assert.equal(a, 6); // 1 + 2 + 3
         });
 
-        it('should call middleware one by one', async function() {
+        it('should invoke middleware one by one', async function() {
             const app = new App();
             let a = 1;
             app.use(async (c, n) => {
@@ -91,7 +96,7 @@ describe('anyflow', function() {
             assert.equal(a, 3); // should be last one.
         });
 
-        it('should call only once `await next()`', async function() {
+        it('should invoke only once by call `await next()`', async function() {
             const app = new App();
             let a = 1;
             app.use(async (c, n) => {
@@ -141,15 +146,15 @@ describe('anyflow', function() {
         it('should has property isNone.', async function() {
             const app = new App();
             app.use(async (c, n) => {
-                assert.equal(n.isNone, false);
+                assert.equal(c.hasNext, true);
                 await n();
             });
             app.use(async (c, n) => {
-                assert.equal(n.isNone, false);
+                assert.equal(c.hasNext, true);
                 await n();
             });
             app.use(async (c, n) => {
-                assert.equal(n.isNone, true);
+                assert.equal(c.hasNext, false);
                 await n();
             });
             await app.run();

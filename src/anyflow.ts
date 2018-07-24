@@ -31,10 +31,19 @@ export interface FlowContext<T extends object> {
      * @memberof FlowContext
      */
     setState(name: PropertyKey, value: any, readonly?: boolean): void;
+
+    /**
+     * return whether the next middleware is a empty middleware.
+     *
+     * @type {boolean}
+     * @memberof FlowContext
+     */
+    readonly hasNext: boolean;
 }
 
 class ExecuteContext<T extends object> implements FlowContext<T> {
     private _state: object = {};
+    hasNext: boolean;
 
     get state() {
         return this._state as T;
@@ -53,10 +62,7 @@ class ExecuteContext<T extends object> implements FlowContext<T> {
     }
 }
 
-export interface Next {
-    (): Promise<any>,
-    isNone: boolean
-}
+export type Next = () => Promise<any>;
 
 export type MiddlewareFunction<T extends object> = (context: FlowContext<T>, next: Next) => Promise<any>;
 
@@ -73,7 +79,7 @@ export interface MiddlewareFactory<T extends object> {
 class MiddlewareInvoker<T extends object> {
     constructor(
         private _factorys: MiddlewareFactory<T>[],
-        private _context: FlowContext<T>) {
+        private _context: ExecuteContext<T>) {
     }
 
     next(index = 0): Promise<any> {
@@ -85,12 +91,12 @@ class MiddlewareInvoker<T extends object> {
         // middleware.invoke() maybe return null/undefined,
         // so I use array to ensure `nextPromise || ?` work only call once.
         let nextPromise: [Promise<any>] = null;
-        const next: Next = Object.assign(() => {
+        const next: Next = () => {
             nextPromise = nextPromise || [this.next(index + 1)];
             return nextPromise[0];
-        }, {
-            isNone: !(index + 1 < this._factorys.length)
-        });
+        };
+
+        this._context.hasNext = index + 1 !== this._factorys.length;
 
         const factory = this._factorys[index];
         const middleware = factory.get();
