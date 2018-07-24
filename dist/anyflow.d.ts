@@ -27,7 +27,10 @@ export interface FlowContext<T extends object> {
      */
     setState(name: PropertyKey, value: any, readonly?: boolean): void;
 }
-export declare type Next = () => Promise<any>;
+export interface Next {
+    (): Promise<any>;
+    isNone: boolean;
+}
 export declare type MiddlewareFunction<T extends object> = (context: FlowContext<T>, next: Next) => Promise<any>;
 export interface Middleware<T extends object> {
     invoke(context: FlowContext<T>, next: Next): Promise<any>;

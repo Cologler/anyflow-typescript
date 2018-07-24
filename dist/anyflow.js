@@ -33,10 +33,12 @@ class MiddlewareInvoker {
         // middleware.invoke() maybe return null/undefined,
         // so I use array to ensure `nextPromise || ?` work only call once.
         let nextPromise = null;
-        const next = async () => {
+        const next = Object.assign(() => {
             nextPromise = nextPromise || [this.next(index + 1)];
             return nextPromise[0];
-        };
+        }, {
+            isNone: !(index + 1 < this._factorys.length)
+        });
         const factory = this._factorys[index];
         const middleware = factory.get();
         return middleware.invoke(this._context, next);

@@ -137,6 +137,25 @@ describe('anyflow', function() {
         });
     });
 
+    describe('#run()~next', function() {
+        it('should has property isNone.', async function() {
+            const app = new App();
+            app.use(async (c, n) => {
+                assert.equal(n.isNone, false);
+                await n();
+            });
+            app.use(async (c, n) => {
+                assert.equal(n.isNone, false);
+                await n();
+            });
+            app.use(async (c, n) => {
+                assert.equal(n.isNone, true);
+                await n();
+            });
+            await app.run();
+        });
+    });
+
     describe('#run()~return', function() {
         it('should accept return value', async function() {
             const app = new App();
