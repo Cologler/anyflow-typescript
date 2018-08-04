@@ -83,7 +83,7 @@ class MiddlewareInvoker<T extends object> {
         private _next: Next = null) {
     }
 
-    public next(index = 0): Promise<any> {
+    public invoke(index = 0): Promise<any> {
         if (index === this._factorys.length) {
             return Promise.resolve(undefined);
         }
@@ -104,10 +104,10 @@ class MiddlewareInvoker<T extends object> {
     private getNext(index): Next {
         // create next
         // middleware.invoke() maybe return null/undefined,
-        // so I use array to ensure `nextPromise || ?` work only call once.
+        // so I use array to ensure `nextPromise || ?` only call once work.
         let nextPromise: [Promise<any>] = null;
         const next: Next = () => {
-            nextPromise = nextPromise || [this.next(index + 1)];
+            nextPromise = nextPromise || [this.invoke(index + 1)];
             return nextPromise[0];
         };
         return next;
@@ -128,13 +128,51 @@ function toMiddleware<T extends object>(obj: MiddlewareType<T>): Middleware<T> {
     }
 }
 
-interface IAppBuilder<T extends object> {
-    use(obj: MiddlewareType<T>): this;
-    useFactory(factory: MiddlewareFactory<T>): this;
-    branch(condition: (c: FlowContext<T>) => boolean): IBranchBuilder<T>;
+export interface IFlowAppBuilder<T extends object> {
+    use(obj: {invoke(context: FlowContext<T>): Promise<any>}|((context: FlowContext<T>) => Promise<any>)): this;
+    useFactory(factory: {get(): {invoke(context: FlowContext<T>): Promise<any>}}): this;
 }
 
-interface IBranchBuilder<T extends object> extends IAppBuilder<T> {
+export interface IAppBuilder<T extends object> {
+    /**
+     * add a function or a middleware instance.
+     *
+     * @param {MiddlewareType<T>} obj
+     * @returns {this}
+     * @memberof IAppBuilder
+     */
+    use(obj: MiddlewareType<T>): this;
+
+    /**
+     * add a middleware factory.
+     *
+     * @param {MiddlewareFactory<T>} factory
+     * @returns {this}
+     * @memberof IAppBuilder
+     */
+    useFactory(factory: MiddlewareFactory<T>): this;
+
+    /**
+     * use a new `IBranchBuilder` as single middleware.
+     *
+     * @param {(c: FlowContext<T>) => boolean} condition
+     * @returns {IBranchBuilder<T>} the new `IBranchBuilder`
+     * @memberof IAppBuilder
+     */
+    branch(condition: (c: FlowContext<T>) => boolean): IBranchBuilder<T>;
+
+    /**
+     * get a `IFlowAppBuilder` for this `IAppBuilder`.
+     *
+     * `IFlowAppBuilder` is not a middleware.
+     *
+     * @returns {IFlowAppBuilder<T>}
+     * @memberof IAppBuilder
+     */
+    flow(): IFlowAppBuilder<T>;
+}
+
+export interface IBranchBuilder<T extends object> extends IAppBuilder<T> {
     else(): IBranchBuilder<T>;
 }
 
@@ -163,9 +201,13 @@ export class App<T extends object> implements IAppBuilder<T> {
         if (typeof condition !== 'function') {
             throw new Error('condition must be a function.');
         }
-        const m = new Branch<T>(condition, null);
+        const m = new Branch<T>(condition);
         this.use(m);
         return m;
+    }
+
+    public flow(): IFlowAppBuilder<T> {
+        return new Flow(this);
     }
 
     /**
@@ -187,48 +229,99 @@ export class App<T extends object> implements IAppBuilder<T> {
             }
         }
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
-        return invoker.next();
+        return invoker.invoke();
     }
 }
 
-class Branch<T extends object> extends App<T> implements Middleware<T>, IBranchBuilder<T> {
-    constructor(
-        private _condition: (c: FlowContext<T>) => boolean | null,
-        private _else: Branch<T> | null) {
+abstract class BranchBuilder<T extends object> extends App<T> implements Middleware<T>, IBranchBuilder<T> {
+    public abstract invoke(context: FlowContext<T>, next: Next);
+    public abstract else();
 
+    protected _execute(context: FlowContext<T>, next: Next) {
+        const invoker = new MiddlewareInvoker(
+            this._factorys.slice(),
+            context as ExecuteContext<T>,
+            next);
+        return invoker.invoke();
+    }
+}
+
+class Branch<T extends object> extends BranchBuilder<T> {
+    private _else: Else<T> = null;
+
+    constructor(private _condition: (c: FlowContext<T>) => boolean | null) {
         super();
     }
 
     public invoke(context: FlowContext<T>, next: Next): Promise<any> {
-        if (this._condition === null || this._condition(context)) {
-            // else branch or condition branch matched
-            const invoker = new MiddlewareInvoker(
-                this._factorys.slice(),
-                context as ExecuteContext<T>,
-                next);
-            return invoker.next();
-        }
-
-        if (this._condition !== null && this._else) {
+        if (this._condition(context)) {
+            return this._execute(context, next);
+        } else if (this._else) {
             return this._else.invoke(context, next);
+        } else {
+            return next();
         }
-
-        return next();
     }
 
     public else(): IBranchBuilder<T> {
         if (this._else === null) {
-            this._else = new Branch<T>(null, this);
+            this._else = new Else<T>(this);
         }
         return this._else;
     }
 }
 
-export function autonext<T extends object>(callback: (context: FlowContext<T>) => Promise<any>)
-    : MiddlewareFunction<T> {
+class Else<T extends object> extends BranchBuilder<T> {
+    constructor(private _else: Branch<T>) {
+        super();
+    }
 
-    return async (c, n) => {
-        await callback(c);
-        return await n();
-    };
+    public invoke(context: FlowContext<T>, next: Next) {
+        return this._execute(context, next);
+    }
+
+    public else(): IBranchBuilder<T> {
+        return this._else;
+    }
+}
+
+class Flow<T extends object> implements IFlowAppBuilder<T> {
+    constructor(private _baseAppBuilder: IAppBuilder<T>) {
+    }
+
+    public use(obj: {
+        invoke(context: FlowContext<T>): Promise<any>;
+    } | ((context: FlowContext<T>) => Promise<any>)): this {
+        if (typeof obj === 'function') {
+            const func: MiddlewareFunction<T> = async (context, next) => {
+                const ret = await obj(context);
+                return context.hasNext ? await next() : ret;
+            };
+            this._baseAppBuilder.use(func);
+        } else {
+            const middleware: Middleware<T> = this._toMiddleware(obj);
+            this._baseAppBuilder.use(middleware);
+        }
+        return this;
+    }
+
+    public useFactory(factory: { get(): { invoke(context: FlowContext<T>): Promise<any>; }; }): this {
+        const wrapper: MiddlewareFactory<T> = {
+            get: () => {
+                return this._toMiddleware(factory.get());
+            },
+        };
+        this._baseAppBuilder.useFactory(wrapper);
+        return this;
+    }
+
+    private _toMiddleware(obj: { invoke(context: FlowContext<T>): Promise<any>; }) {
+        const middleware: Middleware<T> = {
+            invoke: async (context, next) => {
+                const ret = await obj.invoke(context);
+                return context.hasNext ? await next() : ret;
+            },
+        };
+        return middleware;
+    }
 }

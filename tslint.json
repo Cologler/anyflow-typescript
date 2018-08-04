@@ -8,7 +8,8 @@
         "quotemark": false,
         "max-classes-per-file": false,
         "variable-name": [true, "allow-leading-underscore"],
-        "interface-name": false
+        "interface-name": false,
+        "no-namespace": false
     },
     "rulesDirectory": []
 }

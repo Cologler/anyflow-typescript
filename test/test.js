@@ -313,4 +313,46 @@ describe('anyflow', function() {
             });
         });
     });
+
+    describe('flow', function() {
+        it('should can call next auto.', async function() {
+            const data = {};
+            const app = new App();
+            const flow = app.flow();
+            flow.use(() => {
+                data.a = 1;
+            });
+            flow.use(() => {
+                data.b = 2;
+            });
+            await app.run();
+            assert.deepStrictEqual(data, { a: 1, b: 2 });
+        });
+
+        it('should can call next one by one.', async function() {
+            const data = {};
+            const app = new App();
+            const flow = app.flow();
+            flow.use(() => {
+                data.a = 1;
+            });
+            flow.use(() => {
+                data.a = 2;
+            });
+            await app.run();
+            assert.deepStrictEqual(data, { a: 2 });
+        });
+        
+        it('should can get return value by last one.', async function() {
+            const app = new App();
+            const flow = app.flow();
+            flow.use(() => {
+                return 1;
+            });
+            flow.use(() => {
+                return 2;
+            });
+            assert.strictEqual(await app.run(), 2);
+        });
+    });
 });
