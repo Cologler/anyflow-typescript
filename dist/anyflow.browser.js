@@ -27,18 +27,7 @@ class MiddlewareInvoker {
         this._context = _context;
         this._next = _next;
     }
-    getNext(index) {
-        // create next
-        // middleware.invoke() maybe return null/undefined,
-        // so I use array to ensure `nextPromise || ?` work only call once.
-        let nextPromise = null;
-        let next = () => {
-            nextPromise = nextPromise || [this.next(index + 1)];
-            return nextPromise[0];
-        };
-        return next;
-    }
-    next(index = 0) {
+    invoke(index = 0) {
         if (index === this._factorys.length) {
             return Promise.resolve(undefined);
         }
@@ -52,6 +41,17 @@ class MiddlewareInvoker {
         const middleware = factory.get();
         return middleware.invoke(this._context, next);
     }
+    getNext(index) {
+        // create next
+        // middleware.invoke() maybe return null/undefined,
+        // so I use array to ensure `nextPromise || ?` only call once work.
+        let nextPromise = null;
+        const next = () => {
+            nextPromise = nextPromise || [this.invoke(index + 1)];
+            return nextPromise[0];
+        };
+        return next;
+    }
 }
 function toMiddleware(obj) {
     if (obj === null) {
@@ -59,7 +59,7 @@ function toMiddleware(obj) {
     }
     if (typeof obj === 'function') {
         return {
-            invoke: obj
+            invoke: obj,
         };
     }
     else {
@@ -71,9 +71,9 @@ class App {
         this._factorys = [];
     }
     use(obj) {
-        let middleware = toMiddleware(obj);
-        let factory = {
-            get: () => middleware
+        const middleware = toMiddleware(obj);
+        const factory = {
+            get: () => middleware,
         };
         this._factorys.push(factory);
         return this;
@@ -86,9 +86,12 @@ class App {
         if (typeof condition !== 'function') {
             throw new Error('condition must be a function.');
         }
-        const m = new Branch(condition, null);
+        const m = new Branch(condition);
         this.use(m);
         return m;
+    }
+    flow() {
+        return new Flow(this);
     }
     /**
      * if state is a object, assign to context.state.
@@ -99,7 +102,7 @@ class App {
      * @returns {Promise<R>}
      * @memberof App
      */
-    run(state = undefined) {
+    run(state) {
         const context = new ExecuteContext();
         if (state !== undefined) {
             if (typeof state === 'object') {
@@ -110,41 +113,89 @@ class App {
             }
         }
         const invoker = new MiddlewareInvoker(this._factorys.slice(), context);
-        return invoker.next();
+        return invoker.invoke();
     }
 }
 exports.App = App;
-class Branch extends App {
-    constructor(_condition, _else) {
+class BranchBuilder extends App {
+    _execute(context, next) {
+        const invoker = new MiddlewareInvoker(this._factorys.slice(), context, next);
+        return invoker.invoke();
+    }
+}
+class Branch extends BranchBuilder {
+    constructor(_condition) {
         super();
         this._condition = _condition;
-        this._else = _else;
+        this._else = null;
     }
     invoke(context, next) {
-        if (this._condition === null || this._condition(context)) {
-            // else branch or condition branch matched
-            const invoker = new MiddlewareInvoker(this._factorys.slice(), context, next);
-            return invoker.next();
+        if (this._condition(context)) {
+            return this._execute(context, next);
         }
-        if (this._condition !== null && this._else) {
+        else if (this._else) {
             return this._else.invoke(context, next);
         }
-        return next();
+        else {
+            return next();
+        }
     }
     else() {
         if (this._else === null) {
-            this._else = new Branch(null, this);
+            this._else = new Else(this);
         }
         return this._else;
     }
 }
-function autonext(callback) {
-    return async (c, n) => {
-        await callback(c);
-        return await n();
-    };
+class Else extends BranchBuilder {
+    constructor(_else) {
+        super();
+        this._else = _else;
+    }
+    invoke(context, next) {
+        return this._execute(context, next);
+    }
+    else() {
+        return this._else;
+    }
 }
-exports.autonext = autonext;
+class Flow {
+    constructor(_baseAppBuilder) {
+        this._baseAppBuilder = _baseAppBuilder;
+    }
+    use(obj) {
+        if (typeof obj === 'function') {
+            const func = async (context, next) => {
+                const ret = await obj(context);
+                return context.hasNext ? await next() : ret;
+            };
+            this._baseAppBuilder.use(func);
+        }
+        else {
+            const middleware = this._toMiddleware(obj);
+            this._baseAppBuilder.use(middleware);
+        }
+        return this;
+    }
+    useFactory(factory) {
+        const wrapper = {
+            get: () => {
+                return this._toMiddleware(factory.get());
+            },
+        };
+        this._baseAppBuilder.useFactory(wrapper);
+        return this;
+    }
+    _toMiddleware(obj) {
+        const middleware = {
+            invoke: async (context, next) => {
+                const ret = await obj.invoke(context);
+                return context.hasNext ? await next() : ret;
+            },
+        };
+        return middleware;
+    }
+}
 
 },{}]},{},[1])(1)
 });
