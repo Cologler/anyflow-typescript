@@ -14,6 +14,14 @@ export interface FlowContext<T extends object> {
     readonly state: T;
 
     /**
+     * return whether the next middleware is a empty middleware.
+     *
+     * @type {boolean}
+     * @memberof FlowContext
+     */
+    readonly hasNext: boolean;
+
+    /**
      * same as `this.state[name]`.
      *
      * @template TS
@@ -31,29 +39,21 @@ export interface FlowContext<T extends object> {
      * @memberof FlowContext
      */
     setState(name: PropertyKey, value: any, readonly?: boolean): void;
-
-    /**
-     * return whether the next middleware is a empty middleware.
-     *
-     * @type {boolean}
-     * @memberof FlowContext
-     */
-    readonly hasNext: boolean;
 }
 
 class ExecuteContext<T extends object> implements FlowContext<T> {
+    public hasNext: boolean;
     private _state: object = {};
-    hasNext: boolean;
 
     get state() {
         return this._state as T;
     }
 
-    getState<TS>(key: PropertyKey) {
+    public getState<TS>(key: PropertyKey) {
         return this._state[key] as TS;
     }
 
-    setState(key: PropertyKey, value: any, readonly: boolean = false): void {
+    public setState(key: PropertyKey, value: any, readonly: boolean = false): void {
         if (readonly) {
             Object.defineProperty(this._state, key, { value });
         } else {
@@ -78,24 +78,12 @@ export interface MiddlewareFactory<T extends object> {
 
 class MiddlewareInvoker<T extends object> {
     constructor(
-        private _factorys: MiddlewareFactory<T>[],
+        private _factorys: Array<MiddlewareFactory<T>>,
         private _context: ExecuteContext<T>,
         private _next: Next = null) {
     }
 
-    getNext(index): Next {
-        // create next
-        // middleware.invoke() maybe return null/undefined,
-        // so I use array to ensure `nextPromise || ?` work only call once.
-        let nextPromise: [Promise<any>] = null;
-        let next: Next = () => {
-            nextPromise = nextPromise || [this.next(index + 1)];
-            return nextPromise[0];
-        };
-        return next;
-    }
-
-    next(index = 0): Promise<any> {
+    public next(index = 0): Promise<any> {
         if (index === this._factorys.length) {
             return Promise.resolve(undefined);
         }
@@ -112,15 +100,28 @@ class MiddlewareInvoker<T extends object> {
         const middleware = factory.get();
         return middleware.invoke(this._context, next);
     }
+
+    private getNext(index): Next {
+        // create next
+        // middleware.invoke() maybe return null/undefined,
+        // so I use array to ensure `nextPromise || ?` work only call once.
+        let nextPromise: [Promise<any>] = null;
+        const next: Next = () => {
+            nextPromise = nextPromise || [this.next(index + 1)];
+            return nextPromise[0];
+        };
+        return next;
+    }
 }
 
 function toMiddleware<T extends object>(obj: MiddlewareType<T>): Middleware<T> {
     if (obj === null) {
         return null;
     }
+
     if (typeof obj === 'function') {
         return {
-            invoke: obj
+            invoke: obj,
         };
     } else {
         return obj;
@@ -138,27 +139,27 @@ interface IBranchBuilder<T extends object> extends IAppBuilder<T> {
 }
 
 export class App<T extends object> implements IAppBuilder<T> {
-    protected _factorys: MiddlewareFactory<T>[];
+    protected _factorys: Array<MiddlewareFactory<T>>;
 
     constructor() {
         this._factorys = [];
     }
 
-    use(obj: MiddlewareType<T>): this {
-        let middleware = toMiddleware(obj);
-        let factory = {
-            get: () => middleware
+    public use(obj: MiddlewareType<T>): this {
+        const middleware = toMiddleware(obj);
+        const factory = {
+            get: () => middleware,
         };
         this._factorys.push(factory);
         return this;
     }
 
-    useFactory(factory: MiddlewareFactory<T>): this {
+    public useFactory(factory: MiddlewareFactory<T>): this {
         this._factorys.push(factory);
         return this;
     }
 
-    branch(condition: (c: FlowContext<T>) => boolean): IBranchBuilder<T> {
+    public branch(condition: (c: FlowContext<T>) => boolean): IBranchBuilder<T> {
         if (typeof condition !== 'function') {
             throw new Error('condition must be a function.');
         }
@@ -176,7 +177,7 @@ export class App<T extends object> implements IAppBuilder<T> {
      * @returns {Promise<R>}
      * @memberof App
      */
-    run<R>(state: object = undefined): Promise<R> {
+    public run<R>(state?: object): Promise<R> {
         const context = new ExecuteContext();
         if (state !== undefined) {
             if (typeof state === 'object') {
@@ -198,7 +199,7 @@ class Branch<T extends object> extends App<T> implements Middleware<T>, IBranchB
         super();
     }
 
-    invoke(context: FlowContext<T>, next: Next): Promise<any> {
+    public invoke(context: FlowContext<T>, next: Next): Promise<any> {
         if (this._condition === null || this._condition(context)) {
             // else branch or condition branch matched
             const invoker = new MiddlewareInvoker(
@@ -215,7 +216,7 @@ class Branch<T extends object> extends App<T> implements Middleware<T>, IBranchB
         return next();
     }
 
-    else(): IBranchBuilder<T> {
+    public else(): IBranchBuilder<T> {
         if (this._else === null) {
             this._else = new Branch<T>(null, this);
         }
@@ -229,5 +230,5 @@ export function autonext<T extends object>(callback: (context: FlowContext<T>) =
     return async (c, n) => {
         await callback(c);
         return await n();
-    }
+    };
 }
