@@ -239,7 +239,7 @@ describe('anyflow', function() {
             assert.equal(await app.run(), 3);
         });
 
-        it('should accept return value by `await next()`', async function() {
+        it('should accept return value by calling `await next()`', async function() {
             const app = new App();
             app.use(async (c, n) => {
                 return await n();
@@ -250,7 +250,7 @@ describe('anyflow', function() {
             assert.equal(await app.run(), 4);
         });
 
-        it('should accept last `await next()` should be undefined', async function() {
+        it('should return undefined when calling the last `await next()`', async function() {
             const app = new App();
             app.use(async (c, n) => {
                 return await n();
