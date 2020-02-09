@@ -73,7 +73,7 @@ export interface Middleware<T extends object> {
 type MiddlewareType<T extends object> = Middleware<T> | MiddlewareFunction<T>;
 
 export interface MiddlewareFactory<T extends object> {
-    get(): Middleware<T>;
+    get(ctx: ExecuteContext<T>): Middleware<T>;
 }
 
 class MiddlewareInvoker<T extends object> {
@@ -97,7 +97,7 @@ class MiddlewareInvoker<T extends object> {
         }
 
         const factory = this._factorys[index];
-        const middleware = factory.get();
+        const middleware = factory.get(this._context);
         return middleware.invoke(this._context, next);
     }
 
