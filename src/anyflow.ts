@@ -41,7 +41,7 @@ export interface FlowContext<T extends object> {
     setState(name: PropertyKey, value: any, readonly?: boolean): void;
 }
 
-class ExecuteContext<T extends object> implements FlowContext<T> {
+class FlowContextImpl<T extends object> implements FlowContext<T> {
     public hasNext: boolean;
     private _state: object = {};
 
@@ -73,13 +73,13 @@ export interface Middleware<T extends object> {
 type MiddlewareType<T extends object> = Middleware<T> | MiddlewareFunction<T>;
 
 export interface MiddlewareFactory<T extends object> {
-    get(ctx: ExecuteContext<T>): Middleware<T>;
+    get(ctx: FlowContext<T>): Middleware<T>;
 }
 
 class MiddlewareInvoker<T extends object> {
     constructor(
         private _factorys: Array<MiddlewareFactory<T>>,
-        private _context: ExecuteContext<T>,
+        private _context: FlowContextImpl<T>,
         private _next: Next = null) {
     }
 
@@ -220,7 +220,7 @@ export class App<T extends object> implements IAppBuilder<T> {
      * @memberof App
      */
     public run<R>(state?: object): Promise<R> {
-        const context = new ExecuteContext();
+        const context = new FlowContextImpl();
         if (state !== undefined) {
             if (typeof state === 'object') {
                 Object.assign(context.state, state);
@@ -240,7 +240,7 @@ abstract class BranchBuilder<T extends object> extends App<T> implements Middlew
     protected _execute(context: FlowContext<T>, next: Next) {
         const invoker = new MiddlewareInvoker(
             this._factorys.slice(),
-            context as ExecuteContext<T>,
+            context as FlowContextImpl<T>,
             next);
         return invoker.invoke();
     }
