@@ -79,8 +79,7 @@ export interface MiddlewareFactory<T extends object> {
 class MiddlewareInvoker<T extends object> {
     constructor(
         private _factorys: Array<MiddlewareFactory<T>>,
-        private _context: FlowContextImpl<T>,
-        private _next: Next = null) {
+        private _context: FlowContextImpl<T>) {
     }
 
     public invoke(index = 0): Promise<any> {
@@ -89,12 +88,7 @@ class MiddlewareInvoker<T extends object> {
         }
 
         let next = this.getNext(index);
-
-        this._context.hasNext = index + 1 !== this._factorys.length;
-        if (!this._context.hasNext && this._next) {
-            this._context.hasNext = true;
-            next = this._next;
-        }
+        this._context.hasNext = index + 1 < this._factorys.length;
 
         const factory = this._factorys[index];
         const middleware = factory.get(this._context);
@@ -238,10 +232,16 @@ abstract class BranchBuilder<T extends object> extends App<T> implements Middlew
     public abstract else();
 
     protected _execute(context: FlowContext<T>, next: Next) {
+        const nextAsMiddleware: MiddlewareFactory<T> = {
+            get: () => ({
+                invoke: () => next()
+            })
+        };
+        const factorys = this._factorys.slice();
+        factorys.push(nextAsMiddleware);
         const invoker = new MiddlewareInvoker(
-            this._factorys.slice(),
-            context as FlowContextImpl<T>,
-            next);
+            factorys,
+            context as FlowContextImpl<T>);
         return invoker.invoke();
     }
 }
