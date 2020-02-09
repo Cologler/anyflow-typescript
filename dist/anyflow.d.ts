@@ -41,7 +41,7 @@ export interface Middleware<T extends object> {
 }
 declare type MiddlewareType<T extends object> = Middleware<T> | MiddlewareFunction<T>;
 export interface MiddlewareFactory<T extends object> {
-    get(): Middleware<T>;
+    get(ctx: FlowContext<T>): Middleware<T>;
 }
 export interface IFlowAppBuilder<T extends object> {
     use(obj: {

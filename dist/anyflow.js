@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2018~2999 - Cologler <skyoflw@gmail.com> */
 Object.defineProperty(exports, "__esModule", { value: true });
-class ExecuteContext {
+class FlowContextImpl {
     constructor() {
         this._state = {};
     }
@@ -21,23 +21,18 @@ class ExecuteContext {
     }
 }
 class MiddlewareInvoker {
-    constructor(_factorys, _context, _next = null) {
+    constructor(_factorys, _context) {
         this._factorys = _factorys;
         this._context = _context;
-        this._next = _next;
     }
     invoke(index = 0) {
         if (index === this._factorys.length) {
             return Promise.resolve(undefined);
         }
         let next = this.getNext(index);
-        this._context.hasNext = index + 1 !== this._factorys.length;
-        if (!this._context.hasNext && this._next) {
-            this._context.hasNext = true;
-            next = this._next;
-        }
+        this._context.hasNext = index + 1 < this._factorys.length;
         const factory = this._factorys[index];
-        const middleware = factory.get();
+        const middleware = factory.get(this._context);
         return middleware.invoke(this._context, next);
     }
     getNext(index) {
@@ -102,7 +97,7 @@ class App {
      * @memberof App
      */
     run(state) {
-        const context = new ExecuteContext();
+        const context = new FlowContextImpl();
         if (state !== undefined) {
             if (typeof state === 'object') {
                 Object.assign(context.state, state);
@@ -118,7 +113,14 @@ class App {
 exports.App = App;
 class BranchBuilder extends App {
     _execute(context, next) {
-        const invoker = new MiddlewareInvoker(this._factorys.slice(), context, next);
+        const nextAsMiddleware = {
+            get: () => ({
+                invoke: () => next()
+            })
+        };
+        const factorys = this._factorys.slice();
+        factorys.push(nextAsMiddleware);
+        const invoker = new MiddlewareInvoker(factorys, context);
         return invoker.invoke();
     }
 }
