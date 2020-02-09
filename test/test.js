@@ -139,13 +139,13 @@ describe('anyflow', function() {
             const app = new App();
             let a = 1;
             app.use(async (c, n) => {
-                assert.equal(await n(), 8);
-                assert.equal(await n(), 8);
-                assert.equal(await n(), 8);
+                assert.equal(await n(), 2);
+                assert.equal(await n(), 2);
+                assert.equal(await n(), 2);
             });
             app.use(async (c, n) => {
                 a ++;
-                return 8;
+                return a;
             });
             await app.run();
             assert.equal(a, 2);
