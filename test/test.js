@@ -4,7 +4,7 @@ const { App } = require('../dist/anyflow.js');
 describe('anyflow', function() {
 
     describe('#use()', function() {
-        it('should can use function middleware', async function() {
+        it('should can use middleware function', async function() {
             const app = new App();
             let a = 1;
             app.use(async (c, n) => {
@@ -15,7 +15,7 @@ describe('anyflow', function() {
             assert.equal(a, 2);
         });
 
-        it('should can use middleware', async function() {
+        it('should can use middleware object', async function() {
             const app = new App();
             let a = 1;
             app.use({
@@ -43,6 +43,45 @@ describe('anyflow', function() {
             });
             assert.equal(await app.run(), 10);
             assert.equal(a, 2);
+        });
+
+        it('should create middleware every time', async function() {
+            const app = new App();
+            let a = 1;
+            app.useFactory({
+                get: () => {
+                    a++;
+                    return { invoke: async (c, n) => { } };
+                }
+            });
+            await app.run();
+            assert.equal(a, 2);
+            await app.run();
+            assert.equal(a, 3);
+        });
+
+        it('should can create middleware dynamic', async function() {
+            const app = new App();
+            app.useFactory({
+                get: ctx => {
+                    if (ctx.getState('s') === 1) {
+                        return {
+                            invoke: async (c, n) => {
+                                return 2;
+                            }
+                        };
+                    } else {
+                        return {
+                            invoke: async (c, n) => {
+                                return 3;
+                            }
+                        };
+                    }
+                }
+            });
+
+            assert.equal(await app.run({ 's': 1 }), 2);
+            assert.equal(await app.run({ 's': 2 }), 3);
         });
     });
 
@@ -110,6 +149,36 @@ describe('anyflow', function() {
             });
             await app.run();
             assert.equal(a, 2);
+        });
+
+        it('should raise error to outside (sync)', async function() {
+            const app = new App();
+            let msg = 'eeeee';
+            app.use(() => {
+                throw new Error(msg);
+            });
+            try {
+                await app.run();
+                assert.fail('should not go there.');
+            } catch (error) {
+                assert.equal(error.message, msg);
+            }
+        });
+
+        it('should raise error to outside (async)', async function() {
+            const app = new App();
+            let msg = 'eeeee';
+            app.use(() => {
+                return Promise.reject(
+                    new Error(msg)
+                );
+            });
+            try {
+                await app.run();
+                assert.fail('should not go there.');
+            } catch (error) {
+                assert.equal(error.message, msg);
+            }
         });
     });
 
@@ -342,7 +411,7 @@ describe('anyflow', function() {
             await app.run();
             assert.deepStrictEqual(data, { a: 2 });
         });
-        
+
         it('should can get return value by last one.', async function() {
             const app = new App();
             const flow = app.flow();
